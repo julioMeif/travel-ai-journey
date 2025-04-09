@@ -1,26 +1,160 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* Colors */
+  --color-primary: theme(colors.indigo.600);
+  --color-secondary: theme(colors.purple.600);
+  --color-accent: theme(colors.emerald.500);
+  --color-background-start: theme(colors.purple.800);
+  --color-background-end: theme(colors.indigo.900);
+  --color-foreground: theme(colors.white);
+  --color-glass-from: rgba(255, 255, 255, 0.2);
+  --color-glass-to: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+  --color-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Spacing */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2.5rem;
+  --spacing-xl: 4rem;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-heading: "Inter", system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  background: linear-gradient(135deg, var(--color-background-start), var(--color-background-end));
+  color: var(--color-foreground);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Glass styles using CSS @layer for Tailwind v4 */
+@layer components {
+  .glass {
+    background: linear-gradient(to bottom right, var(--color-glass-from), var(--color-glass-to));
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-glass-border);
+    box-shadow: var(--color-glass-shadow);
+    border-radius: var(--radius-xl);
+  }
+
+  .glass-primary {
+    background: linear-gradient(to bottom right, color-mix(in srgb, var(--color-primary) 20%, transparent), color-mix(in srgb, var(--color-primary) 10%, transparent));
+    backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    box-shadow: var(--color-glass-shadow);
+    border-radius: var(--radius-xl);
+  }
+
+  .glass-success {
+    background: linear-gradient(to bottom right, color-mix(in srgb, var(--color-accent) 20%, transparent), color-mix(in srgb, var(--color-accent) 10%, transparent));
+    backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+    box-shadow: var(--color-glass-shadow);
+    border-radius: var(--radius-xl);
+  }
+
+  .glass-warning {
+    background: linear-gradient(to bottom right, color-mix(in srgb, theme(colors.amber.500) 20%, transparent), color-mix(in srgb, theme(colors.amber.500) 10%, transparent));
+    backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, theme(colors.amber.500) 30%, transparent);
+    box-shadow: var(--color-glass-shadow);
+    border-radius: var(--radius-xl);
+  }
+
+  .glass-danger {
+    background: linear-gradient(to bottom right, color-mix(in srgb, theme(colors.rose.500) 20%, transparent), color-mix(in srgb, theme(colors.rose.500) 10%, transparent));
+    backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, theme(colors.rose.500) 30%, transparent);
+    box-shadow: var(--color-glass-shadow);
+    border-radius: var(--radius-xl);
+  }
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Animation classes */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-in-out forwards;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.5s ease-in-out forwards;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
