@@ -1,10 +1,7 @@
 // src/components/selection/desktop/DropZone.tsx
-// Purpose: Target area for draggable cards with visual feedback
-// Used in: DesktopDragAndDrop for accept/reject zones
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDrop } from 'react-dnd';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '../../ui';
 
 interface DropZoneProps {
@@ -21,81 +18,130 @@ export const DropZone: React.FC<DropZoneProps> = ({
   className = ''
 }) => {
   const [isActive, setIsActive] = useState(false);
+  const [showPulse, setShowPulse] = useState(false);
   
-  // Define drop behavior
+  // Set up a pulsing animation that runs every few seconds to draw attention
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowPulse(true);
+      setTimeout(() => setShowPulse(false), 600);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Define drop behavior - SIMPLIFIED for more reliable detection
   const [{ isOver, canDrop }, dropRef] = useDrop({
     accept: 'CARD',
-    drop: (item: { id: string }) => {
+    drop: (item: { id: string }, monitor) => {
+      console.log(`DROP EVENT DETECTED in ${type} zone for item ${item.id}`);
       onDrop(item.id);
-      return { name: type === 'accept' ? 'Accepted' : 'Rejected' };
+      return { name: type };
     },
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
       canDrop: !!monitor.canDrop(),
     }),
-    hover: () => {
-      setIsActive(true);
-    },
   });
-  
-  // Reset active state when not hovering
-  React.useEffect(() => {
-    if (!isOver) {
-      setIsActive(false);
+
+  // Set active state when hovering
+  useEffect(() => {
+    setIsActive(isOver && canDrop);
+    if (isOver && canDrop) {
+      console.log(`Hover active in ${type} zone`);
     }
-  }, [isOver]);
+  }, [isOver, canDrop, type]);
   
-  // Determine color based on zone type
-  const color = type === 'accept' ? 'success' : 'danger';
-  
-  // Determine icon and text based on zone type
+  // Determine content based on zone type
   const zoneContent = {
     accept: {
       icon: '👍',
       text: 'Add to Trip',
+      activeText: 'Drop to Add',
+      color: 'from-emerald-600/50 to-teal-600/50',
+      activeColor: 'from-emerald-600 to-teal-600',
+      border: 'border-emerald-400/30',
+      activeBorder: 'border-emerald-400'
     },
     reject: {
       icon: '👎',
       text: 'Skip',
+      activeText: 'Drop to Skip',
+      color: 'from-rose-600/50 to-pink-600/50',
+      activeColor: 'from-rose-600 to-pink-600',
+      border: 'border-rose-400/30',
+      activeBorder: 'border-rose-400'
     },
   };
 
+  // Critical: Prevent default drag behaviors to avoid browser handling
+  const preventDefaultDragBehavior = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+
   return (
-    <motion.div
-      ref={dropRef}
-      className={`h-full ${className}`}
-      animate={{
-        scale: isActive ? 1.03 : 1,
+    <div 
+      className={`relative h-full ${className}`} 
+      ref={(node) => {
+        if (node) dropRef(node);
       }}
+      // Add these event handlers to prevent browser interference
+      onDragOver={preventDefaultDragBehavior}
+      onDragEnter={preventDefaultDragBehavior}
+      onDragLeave={preventDefaultDragBehavior}
+      onDrop={preventDefaultDragBehavior}
     >
-      <GlassPanel
-        className="w-64 h-full flex flex-col items-center justify-center"
-        color={isActive ? color : 'default'}
-        intensity={isActive ? 'high' : 'medium'}
+      {/* Pulsing effect */}
+      <AnimatePresence>
+        {showPulse && !isActive && (
+          <motion.div
+            className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${zoneContent[type].color} z-0`}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.5, scale: 1.05 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.6 }}
+          />
+        )}
+      </AnimatePresence>
+    
+      <motion.div
+        className="h-full relative z-10"
+        animate={{
+          scale: isActive ? 1.03 : 1,
+        }}
       >
-        <div className="flex flex-col items-center gap-4">
-          <span className="text-4xl">{zoneContent[type].icon}</span>
-          <span className="text-xl font-medium text-white">
-            {zoneContent[type].text}
-          </span>
+        <GlassPanel
+          className={`w-full h-full flex flex-col items-center justify-center border-2 transition-all duration-300
+                    ${isActive ? zoneContent[type].activeBorder : zoneContent[type].border}`}
+          color={isActive ? (type === 'accept' ? 'success' : 'danger') : 'default'}
+          intensity={isActive ? 'high' : 'medium'}
+        >
+          <div className={`flex flex-col items-center gap-4 p-6 rounded-xl transition-all duration-300
+                         ${isActive ? `bg-gradient-to-r ${zoneContent[type].activeColor}` : ''}`}>
+            <span className="text-4xl">{zoneContent[type].icon}</span>
+            <span className="text-xl font-medium text-white text-center">
+              {isActive ? zoneContent[type].activeText : zoneContent[type].text}
+            </span>
+            
+            {/* Visual indicator for active drop */}
+            {isActive && (
+              <motion.div
+                className="mt-2 w-16 h-1 bg-white rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: 64 }}
+                transition={{
+                  duration: 0.3,
+                  ease: "easeOut"
+                }}
+              />
+            )}
+          </div>
           
-          {/* Visual indicator for active drop */}
-          {isActive && (
-            <motion.div
-              className="mt-4 w-16 h-1 bg-white rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: 64 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeOut"
-              }}
-            />
-          )}
-        </div>
-        
-        {/* Children content (e.g., cards that have been dropped) */}
-        {children}
-      </GlassPanel>
-    </motion.div>
+          {/* Children content (e.g., cards that have been dropped) */}
+          {children}
+        </GlassPanel>
+      </motion.div>
+    </div>
   );
 };

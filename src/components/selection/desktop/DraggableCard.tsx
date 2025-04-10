@@ -1,10 +1,7 @@
 // src/components/selection/desktop/DraggableCard.tsx
-// Purpose: Interactive card that can be dragged in the selection interface
-// Used in: DesktopDragAndDrop component for travel option selection
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useDrag } from 'react-dnd';
-import { motion } from 'framer-motion';
+import { motion, PanInfo } from 'framer-motion';
 import { GlassPanel } from '../../ui';
 
 interface DraggableCardProps {
@@ -19,6 +16,7 @@ interface DraggableCardProps {
   totalCards: number;
   onAccept?: () => void;
   onReject?: () => void;
+  isTopCard: boolean; // Add this to indicate if it's the currently active card
 }
 
 export const DraggableCard: React.FC<DraggableCardProps> = ({
@@ -33,41 +31,54 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
   totalCards,
   onAccept,
   onReject,
+  isTopCard, // Use this to determine interactivity
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   
-  // Define drag behavior
-  const [{ opacity }, dragRef] = useDrag(
-    () => ({
-      type: 'CARD',
-      item: { id },
-      collect: (monitor) => ({
-        opacity: monitor.isDragging() ? 0.8 : 1,
-      }),
-      begin: () => {
-        setIsDragging(true);
-      },
-      end: () => {
-        setIsDragging(false);
-      },
+  // SIMPLIFIED drag configuration
+  const [{ opacity }, dragRef] = useDrag({
+    type: 'CARD',
+    item: { id },
+    canDrag: isTopCard,
+    end: (item, monitor) => {
+      setIsDragging(false);
+      const didDrop = monitor.didDrop();
+      console.log(`Drag ended for card ${id}, item dropped: ${didDrop}`);
+      
+      // If the card was dropped on a target, we don't need to do anything
+      // React DnD will handle it via the drop target
+    },
+    collect: (monitor) => ({
+      opacity: monitor.isDragging() ? 0.8 : 1,
+      isDragging: monitor.isDragging(),
     }),
-    [id]
-  );
+  });
+
+  // Update local state when drag state changes
+  useEffect(() => {
+    if (isDragging !== opacity < 1) {
+      setIsDragging(opacity < 1);
+    }
+  }, [opacity, isDragging]);
 
   // Calculate card positioning for stack effect
   const calculateOffset = () => {
-    // Slight offset for cards in the stack
-    const baseOffset = index * 4;
+    // Improved stacking effect
+    const stackSpacing = 8; // Spacing between cards in the stack
+    const stackRotationFactor = 0.8; // Degrees of rotation between cards
+    
+    // Calculate based on position in stack (from bottom)
     return {
-      x: baseOffset,
-      y: baseOffset,
-      rotate: index * 0.5, // Subtle rotation for stack effect
+      x: (totalCards - index - 1) * 1, // Slight horizontal offset
+      y: (totalCards - index - 1) * stackSpacing, // Vertical offset increases for cards deeper in stack
+      rotate: (totalCards - index - 1) * stackRotationFactor * (Math.random() > 0.5 ? 1 : -1), // Slightly random rotation
+      scale: 1 - (totalCards - index - 1) * 0.01, // Cards deeper in stack are slightly smaller
     };
   };
 
-  const { x, y, rotate } = calculateOffset();
+  const { x, y, rotate, scale } = calculateOffset();
   
   // Close expanded card when clicking outside
   useEffect(() => {
@@ -82,6 +93,13 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isExpanded]);
+
+  // Prevent default drag behavior for framer-motion events
+  const preventDragStart = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (!isTopCard) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
 
   // Render rating stars
   const renderRating = () => {
@@ -113,36 +131,38 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
     <motion.div
       ref={(node) => {
         dragRef(node);
-        if (cardRef.current) {
-          cardRef.current = node as HTMLDivElement;
-        }
+        (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
       }}
       className={`
-        relative
+        absolute
         w-80 h-96
-        cursor-grab
+        ${isTopCard ? 'cursor-grab' : 'pointer-events-none'}
         ${isDragging ? 'cursor-grabbing z-50' : ''}
         ${isExpanded ? 'z-50' : ''}
       `}
       style={{ 
         opacity,
         zIndex: isExpanded ? 50 : totalCards - index,
+        touchAction: 'none' // Prevents touch scrolling during drag
       }}
-      initial={{ x, y, rotate, scale: 0.98 }}
+      initial={{ x, y, rotate, scale }}
       animate={{ 
         x: isDragging || isExpanded ? 0 : x,
         y: isDragging || isExpanded ? 0 : y,
         rotate: isDragging || isExpanded ? 0 : rotate,
-        scale: isDragging ? 1.02 : isExpanded ? 1.1 : 0.98,
+        scale: isDragging ? 1.02 : isExpanded ? 1.1 : scale,
+        opacity: isDragging ? 0.9 : isTopCard ? 1 : 0.95 - (0.05 * (totalCards - index - 1)),
       }}
       transition={{
         type: "spring",
         stiffness: 300,
         damping: 20
       }}
-      whileHover={{ scale: isExpanded ? 1.1 : 1.02 }}
+      whileHover={isTopCard ? { scale: isExpanded ? 1.1 : 1.02 } : {}}
+      // These event handlers now use the correct types
+      onDragStart={preventDragStart}
     >
-      <GlassPanel className="h-full overflow-hidden">
+      <GlassPanel className="h-full overflow-hidden" intensity={isTopCard ? "high" : "medium"}>
         {/* Card Content */}
         <div className="h-full flex flex-col">
           {/* Image Section */}
@@ -151,6 +171,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
               src={imageSrc}
               alt={title}
               className="w-full h-full object-cover"
+              draggable={false} // Prevent browser image dragging
             />
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
             
@@ -172,16 +193,18 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
             <div className="mt-2">
               {renderRating()}
               
-              {/* Expand/Details Button */}
+              {/* Expand/Details Button and Action Buttons*/}
               <div className="mt-3 flex justify-between">
-                <button 
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="bg-transparent hover:bg-white/10 text-white text-sm px-3 py-1.5 rounded-lg transition-all duration-300"
-                >
-                  {isExpanded ? 'Less info' : 'More info'}
-                </button>
+                {isTopCard && (
+                  <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="bg-transparent hover:bg-white/10 text-white text-sm px-3 py-1.5 rounded-lg transition-all duration-300"
+                  >
+                    {isExpanded ? 'Less info' : 'More info'}
+                  </button>
+                )}
                 
-                {!isDragging && !isExpanded && (
+                {isTopCard && !isDragging && !isExpanded && (
                   <div className="flex gap-2">
                     {onReject && (
                       <button 
@@ -216,8 +239,8 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
         </div>
       </GlassPanel>
       
-      {/* Expanded Card Details */}
-      {isExpanded && (
+      {/* Expanded Card Details - only for top card */}
+      {isTopCard && isExpanded && (
         <motion.div
           className="absolute inset-0 z-40"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -244,6 +267,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
                   src={imageSrc}
                   alt={title}
                   className="w-full h-full object-cover"
+                  draggable={false}
                 />
               </div>
               

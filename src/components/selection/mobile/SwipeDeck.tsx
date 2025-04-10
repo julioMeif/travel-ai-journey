@@ -1,7 +1,4 @@
 // src/components/selection/mobile/SwipeDeck.tsx
-// Purpose: Main swipe interface for mobile devices
-// Used in: The second step of the travel planning wizard on mobile
-
 import React, { useState, useEffect, useRef } from 'react';
 import TinderCard from 'react-tinder-card';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +8,7 @@ import { GlassPanel } from '../../ui/GlassPanel';
 import { Button } from '../../ui/Button';
 import { ProgressBar } from '../../ui/ProgressBar';
 
-// Types
+// Types for travel options
 export interface TravelOption {
   id: string;
   title: string;
@@ -20,7 +17,7 @@ export interface TravelOption {
   price?: number;
   rating?: number;
   details?: React.ReactNode;
-  type: 'flight' | 'hotel' | 'activity' | 'transport'; // Add this line
+  type: 'flight' | 'hotel' | 'activity' | 'transport';
   time?: string;
   duration?: string;
   location?: string;
@@ -32,11 +29,7 @@ interface SwipeDeckProps {
   onBack?: () => void;
 }
 
-export const SwipeDeck: React.FC<SwipeDeckProps> = ({
-  travelOptions,
-  onComplete,
-  onBack,
-}) => {
+export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete, onBack }) => {
   const [cards, setCards] = useState<TravelOption[]>([]);
   const [acceptedOptions, setAcceptedOptions] = useState<TravelOption[]>([]);
   const [rejectedOptions, setRejectedOptions] = useState<TravelOption[]>([]);
@@ -44,13 +37,12 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<TravelOption | null>(null);
-  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Store success/failure record of swipe callbacks
+  // Ref to record which cards have been swiped
   const swipeRecordRef = useRef<Record<string, boolean>>({});
 
-  // Initialize cards
+  // Initialize cards when travelOptions change
   useEffect(() => {
     setCards([...travelOptions].reverse());
     setAcceptedOptions([]);
@@ -60,15 +52,12 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     swipeRecordRef.current = {};
   }, [travelOptions]);
 
-  // Update progress
+  // Update progress and complete if all are processed
   useEffect(() => {
     const totalOptions = travelOptions.length;
     const processedOptions = acceptedOptions.length + rejectedOptions.length;
     setProgress((processedOptions / totalOptions) * 100);
-    
-    // Check if all options have been processed
     if (processedOptions === totalOptions && totalOptions > 0 && !isAnimating) {
-      // Allow animations to complete before proceeding
       setTimeout(() => {
         if (acceptedOptions.length > 0) {
           onComplete(acceptedOptions);
@@ -77,46 +66,31 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     }
   }, [acceptedOptions, rejectedOptions, travelOptions, onComplete, isAnimating]);
 
-  // Handle card swiped callback
+  // Process a swipe
   const handleSwiped = (direction: string, id: string, index: number) => {
     setIsAnimating(false);
-    setSwipeDirection(null);
-    
-    // Only process if we haven't already recorded this swipe
     if (!swipeRecordRef.current[id]) {
-      const option = travelOptions.find(opt => opt.id === id);
+      const option = travelOptions.find((opt) => opt.id === id);
       if (option) {
         if (direction === 'right') {
-          setAcceptedOptions(prev => [...prev, option]);
+          setAcceptedOptions((prev) => [...prev, option]);
         } else if (direction === 'left') {
-          setRejectedOptions(prev => [...prev, option]);
+          setRejectedOptions((prev) => [...prev, option]);
         }
         swipeRecordRef.current[id] = true;
       }
     }
-    
     setCurrentIndex(index - 1);
   };
 
-  // Handle swipe start
-  const handleSwipeStart = (direction: 'left' | 'right') => {
-    setIsAnimating(true);
-    setSwipeDirection(direction);
-  };
-
-  // Manually trigger swipe
+  // Stub for triggering a swipe manually
   const triggerSwipe = (direction: 'left' | 'right') => {
     if (currentIndex >= 0 && currentIndex < cards.length) {
-      handleSwipeStart(direction);
-      // Note: This is a simplified reference to react-tinder-card API
-      // The actual implementation would need to use the API's swipe method
-      console.log(`Manual swipe ${direction} triggered for card ${cards[currentIndex].id}`);
-      // In a real implementation, you would do something like:
-      // cardRefs.current[currentIndex].swipe(direction);
+      console.log(`Trigger swipe ${direction} for card ${cards[currentIndex].id}`);
+      // To implement a full swipe, integrate react-tinder-card's ref methods.
     }
   };
 
-  // Open card details
   const handleOpenDetails = () => {
     if (currentIndex >= 0 && currentIndex < cards.length) {
       setSelectedCard(cards[currentIndex]);
@@ -124,7 +98,6 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
     }
   };
 
-  // Action handlers for details modal
   const handleAcceptFromDetails = () => {
     setDetailsOpen(false);
     setTimeout(() => {
@@ -148,123 +121,44 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
             <h2 className="text-xl font-bold text-white mb-2">Select Your Options</h2>
             <p className="text-white/70 text-sm">Swipe right to accept, left to skip</p>
           </div>
-          
           {onBack && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-            >
+            <Button variant="ghost" size="sm" onClick={onBack}>
               Back
             </Button>
           )}
         </div>
-        
-        {/* Progress bar */}
-        <ProgressBar 
-          value={progress} 
-          color="primary"
-          label="Selection Progress"
-        />
+        <ProgressBar value={progress} color="primary" label="Selection Progress" />
       </GlassPanel>
-      
-      {/* Card area */}
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="relative h-[500px] w-full max-w-sm">
+
+      {/* Card Area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4">
+        {/* Notice we removed max-width here to let the card span full width */}
+        <div className="relative w-full h-[70vh] overflow-hidden">
           {cards.map((card, index) => (
-            <div key={card.id} className={`absolute w-full h-full swipe-card-${card.id}`}>
-              <TinderCard
-                onSwipe={(dir) => handleSwiped(dir, card.id, index)}
-                preventSwipe={['up', 'down']}
-              >
-                <div className="w-full h-full" onClick={handleOpenDetails}>
-                  <SwipeCard
-                    id={card.id}
-                    title={card.title}
-                    description={card.description}
-                    imageSrc={card.imageSrc}
-                    price={card.price}
-                    rating={card.rating}
-                    details={card.details}
-                    onExpand={handleOpenDetails}
-                  />
-                </div>
-              </TinderCard>
-            </div>
+            <TinderCard
+              key={card.id}
+              className="absolute inset-0"
+              onSwipe={(dir) => handleSwiped(dir, card.id, index)}
+              preventSwipe={['up', 'down']}
+            >
+              <SwipeCard {...card} onExpand={handleOpenDetails} />
+            </TinderCard>
           ))}
         </div>
-        
-        {/* Empty state */}
-        {(currentIndex < 0 || cards.length === 0) && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-center px-4"
-          >
-            <GlassPanel className="p-6">
-              <h3 className="text-xl font-bold text-white mb-2">
-                {acceptedOptions.length > 0
-                  ? "All options reviewed!"
-                  : "No travel options available"}
-              </h3>
-              <p className="text-white/70 mb-6">
-                {acceptedOptions.length > 0
-                  ? `You've added ${acceptedOptions.length} option${acceptedOptions.length !== 1 ? 's' : ''} to your trip.`
-                  : "Please try again with different preferences."}
-              </p>
-              
-              {acceptedOptions.length > 0 && (
-                <Button 
-                  variant="primary" 
-                  size="lg"
-                  onClick={() => onComplete(acceptedOptions)}
-                  fullWidth
-                >
-                  Continue to Itinerary
-                </Button>
-              )}
-              
-              {acceptedOptions.length === 0 && onBack && (
-                <Button 
-                  variant="primary" 
-                  size="lg"
-                  onClick={onBack}
-                  fullWidth
-                >
-                  Back to Preferences
-                </Button>
-              )}
-            </GlassPanel>
-          </motion.div>
-        )}
       </div>
-      
-      {/* Manual control buttons */}
+
+      {/* Manual Control Buttons */}
       {currentIndex >= 0 && cards.length > 0 && (
         <div className="mt-6 flex justify-center gap-8">
-          <Button
-            variant="danger"
-            size="lg"
-            onClick={() => triggerSwipe('left')}
-            disabled={isAnimating}
-            className="w-24 h-24 rounded-full"
-          >
-            <span className="text-2xl">👎</span>
+          <Button variant="danger" size="lg" onClick={() => triggerSwipe('left')}>
+            👎
           </Button>
-          
-          <Button
-            variant="success"
-            size="lg"
-            onClick={() => triggerSwipe('right')}
-            disabled={isAnimating}
-            className="w-24 h-24 rounded-full"
-          >
-            <span className="text-2xl">👍</span>
+          <Button variant="success" size="lg" onClick={() => triggerSwipe('right')}>
+            👍
           </Button>
         </div>
       )}
-      
+
       {/* Card Details Modal */}
       <AnimatePresence>
         {detailsOpen && selectedCard && (
@@ -281,15 +175,14 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
           />
         )}
       </AnimatePresence>
-      
-      {/* Selection counter badges */}
+
+      {/* Selection Counters */}
       <div className="mt-6 flex justify-center gap-6">
         <GlassPanel className="py-2 px-4" color="danger">
           <span className="text-white">
             <span className="font-bold">{rejectedOptions.length}</span> Skipped
           </span>
         </GlassPanel>
-        
         <GlassPanel className="py-2 px-4" color="success">
           <span className="text-white">
             <span className="font-bold">{acceptedOptions.length}</span> Accepted
