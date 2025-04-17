@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { TravelPreferences, ChatMessage } from '../types/travel';
 import { aiService } from '../services/ai/aiService';
 import { travelService } from '../services/travel/travelService';
+import { FlightSearchParams } from '../types/travelService';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define the Message type to match what aiService expects
@@ -413,19 +414,18 @@ export const TravelProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       console.log("Generated travel plan:", travelPlan);
       
       // Use IATA codes directly if they're provided by the AI
-      const flightParams = {
-        origin: travelPreferences.originCode || travelPreferences.origin,
-        destination: travelPreferences.destinationCode || travelPreferences.destination,
+      const flightParams: Partial<FlightSearchParams> = {
+        origin: travelPreferences.originCode || travelPreferences.origin || '',
+        destination: travelPreferences.destinationCode || travelPreferences.destination || '',
         departureDate: travelPreferences.dates?.departure,
         returnDate: travelPreferences.dates?.return,
-        // Other parameters...
       };
 
       // Build each promise separately
-      const flightPromise = travelService.searchFlights(flightParams);
+      const flightPromise = travelService.searchFlights(flightParams as FlightSearchParams);
       const hotelPromise = travelService.searchHotels({
         // Hotel parameters...
-        location: travelPreferences.destinationCode || travelPreferences.destination,
+        location: travelPreferences.destinationCode || travelPreferences.destination || '',
         checkIn: travelPreferences.dates?.departure,
         checkOut: travelPreferences.dates?.return,
       });

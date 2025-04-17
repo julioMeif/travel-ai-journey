@@ -1,92 +1,14 @@
 // src/services/travel/travelService.ts
 import { TravelPreferences } from '../../types/travel';
-
-// Define interfaces for the parameters
-interface FlightSearchParams {
-  origin: string;
-  destination: string;
-  originCode?: string;
-  destinationCode?: string;
-  departureDate?: string;
-  returnDate?: string;
-  travelers?: number;
-  class?: string;
-  airlines?: string[];
-}
-
-interface HotelSearchParams {
-  location: string;
-  destinationCode?: string;
-  checkIn?: string;
-  checkOut?: string;
-  guests?: number;
-  rooms?: number;
-  minRating?: number;
-  priceRange?: { min: number; max: number };
-  amenities?: string[];
-  accommodation?: {
-    type?: string;
-  };
-}
-
-interface ActivitySearchParams {
-  destination: string;
-  activities?: {
-    interests: string[];
-  };
-}
-
-// Define interfaces for the return types
-interface FlightOption {
-  id: string;
-  airline: string;
-  flightNumber: string;
-  departureAirport: string;
-  departureTime: string;
-  arrivalAirport: string;
-  arrivalTime: string;
-  price: number;
-  duration: string;
-  cabinClass: string;
-  stops: number;
-}
-
-interface HotelOption {
-  id: string;
-  name: string;
-  address: string;
-  rating: number;
-  pricePerNight: number;
-  images: string[];
-  amenities: string[];
-  description: string;
-}
-
-interface ActivityOption {
-  id: string;
-  name: string;
-  description: string;
-  location: string;
-  price: number;
-  rating: number;
-  duration: string;
-  images: string[];
-  categories: string[];
-  availableTimes: string[];
-}
-
-interface UnsplashImage {
-  id: string;
-  urls: {
-    raw: string;
-    full: string;
-    regular: string;
-    small: string;
-    thumb: string;
-  };
-  alt_description?: string;
-  description?: string;
-}
+import {
+  FlightSearchParams,
+  HotelSearchParams,
+  ActivitySearchParams,
+  FlightOption,
+  HotelOption,
+  ActivityOption,
+  UnsplashImage
+} from '../../types/travelService';
 
 class TravelService {
   // Quick availability search using server-side API endpoint
@@ -153,7 +75,7 @@ class TravelService {
     } catch (error) {
       console.error('Flight search failed:', error);
       // Fallback to mock data if API call fails
-      return this.generateMockFlights({ flights: flightParams });
+      return this.generateMockFlights(flightParams);
     }
   }
   
@@ -180,7 +102,7 @@ class TravelService {
     } catch (error) {
       console.error('Hotel search failed:', error);
       // Fallback to mock data if API call fails
-      return this.generateMockHotels({ accommodation: hotelParams });
+      return this.generateMockHotels(hotelParams);
     }
   }
   
@@ -207,7 +129,7 @@ class TravelService {
     } catch (error) {
       console.error('Activity search failed:', error);
       // Fallback to mock data if API call fails
-      return this.generateMockActivities({ activities: activityParams });
+      return this.generateMockActivities(activityParams);
     }
   }
 
@@ -248,17 +170,19 @@ class TravelService {
         priceRanges: [{ min: 20, max: 200 }]
       },
       rawResults: {
-        flights: this.generateMockFlights({ 
+        flights: this.generateMockFlights({
           origin, 
           destination,
           originCode,
           destinationCode
-        }),
-        hotels: this.generateMockHotels({ 
-          destination,
-          destinationCode 
-        }),
-        activities: this.generateMockActivities({ destination })
+        } as FlightSearchParams),
+        hotels: this.generateMockHotels({
+          location: destination,
+          destinationCode
+        } as HotelSearchParams),
+        activities: this.generateMockActivities({
+          destination
+        } as ActivitySearchParams)
       }
     };
   }
@@ -451,7 +375,7 @@ class TravelService {
     ];
     
     // Create a new array that includes the default activities
-    let allActivities = [...defaultActivities];
+    const allActivities = [...defaultActivities];
     
     // Add interest-specific activities
     if (interests.length > 0) {
