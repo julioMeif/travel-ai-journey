@@ -68,7 +68,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
     }
   }, [acceptedOptions, rejectedOptions, travelOptions, onComplete, isAnimating]);
 
-  const handleSwiped = (direction: string, id: string, index: number) => {
+  const handleSwiped = (direction: string, id: string) => {
     setIsAnimating(false);
     if (!swipeRecordRef.current[id]) {
       const option = travelOptions.find(opt => opt.id === id);
