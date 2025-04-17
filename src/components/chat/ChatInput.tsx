@@ -22,7 +22,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     "I want to visit Japan in spring",
     "Planning a beach vacation with kids",
     "Weekend trip to a mountain retreat",
-    "Looking for adventure activities in Thailand"
+    "Visit Bordeaux From Miami June 5th to July 8th",
   ]
 }) => {
   const [message, setMessage] = useState('');

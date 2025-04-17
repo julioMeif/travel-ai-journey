@@ -1,4 +1,5 @@
-// src/components/selection/desktop/DesktopDragAndDrop.tsx
+// Modified DesktopDragAndDrop.tsx with layout fixes
+
 import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -12,9 +13,9 @@ import { EventType } from '../../timeline/TimelineEvent';
 const dndOptions = {
   enableTouchEvents: true,
   enableMouseEvents: true,
-  delay: 0, // Reduced delay for more immediate response
-  enableKeyboardEvents: true, // Enable keyboard accessibility
-  rootElement: typeof document !== 'undefined' ? document.body : undefined, // Ensure dragging works across the entire page
+  delay: 0,
+  enableKeyboardEvents: true,
+  rootElement: typeof document !== 'undefined' ? document.body : undefined,
 };
 
 // Types
@@ -49,6 +50,15 @@ export const DesktopDragAndDrop: React.FC<DesktopDragAndDropProps> = ({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [visibleCardCount, setVisibleCardCount] = useState(0);
+
+  // Filter out flights/hotels if already accepted
+  const isTypeAlreadyAccepted = (type: EventType) =>
+    ['flight', 'hotel'].includes(type) &&
+    acceptedOptions.some(opt => opt.type === type);
+
+  const filteredRemainingOptions = remainingOptions.filter(
+    opt => !isTypeAlreadyAccepted(opt.type)
+  );
   
   // Initialize with travel options
   useEffect(() => {
@@ -95,7 +105,7 @@ export const DesktopDragAndDrop: React.FC<DesktopDragAndDropProps> = ({
     }
   }, [acceptedOptions, rejectedOptions, travelOptions, onComplete]);
 
-  // Handle accepting a travel option - IMPROVED LOGGING
+  // Handle accepting a travel option
   const handleAccept = (id: string) => {
     console.log(`ACCEPT: Processing card with ID: ${id}`);
     setIsTransitioning(true);
@@ -106,20 +116,20 @@ export const DesktopDragAndDrop: React.FC<DesktopDragAndDropProps> = ({
       setAcceptedOptions(prev => [...prev, option]);
       setRemainingOptions(prev => prev.filter(opt => opt.id !== id));
       
-      // Show the next card in the stack with animation
-      if (visibleCardCount < remainingOptions.length) {
+      // Show next card if there are still filtered cards left
+      if (visibleCardCount < filteredRemainingOptions.length) {
         setTimeout(() => {
-          setVisibleCardCount(prev => Math.min(prev + 1, remainingOptions.length));
+          setVisibleCardCount(prev => Math.min(prev + 1, filteredRemainingOptions.length));
         }, 300);
       }
     } else {
-      console.error(`ACCEPT: Option with ID ${id} not found in remaining options`);
+      console.error(`ACCEPT: Option with ID ${id} not found`);
     }
     
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
-  // Handle rejecting a travel option - IMPROVED LOGGING
+  // Handle rejecting a travel option
   const handleReject = (id: string) => {
     console.log(`REJECT: Processing card with ID: ${id}`);
     setIsTransitioning(true);
@@ -130,51 +140,33 @@ export const DesktopDragAndDrop: React.FC<DesktopDragAndDropProps> = ({
       setRejectedOptions(prev => [...prev, option]);
       setRemainingOptions(prev => prev.filter(opt => opt.id !== id));
       
-      // Show the next card in the stack with animation
-      if (visibleCardCount < remainingOptions.length) {
+      if (visibleCardCount < filteredRemainingOptions.length) {
         setTimeout(() => {
-          setVisibleCardCount(prev => Math.min(prev + 1, remainingOptions.length));
+          setVisibleCardCount(prev => Math.min(prev + 1, filteredRemainingOptions.length));
         }, 300);
       }
     } else {
-      console.error(`REJECT: Option with ID ${id} not found in remaining options`);
+      console.error(`REJECT: Option with ID ${id} not found`);
     }
     
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
-  // Manually accept the current card (fallback button)
+  // Manual accept/reject for fallback
   const handleManualAccept = () => {
-    if (remainingOptions.length > 0) {
-      handleAccept(remainingOptions[0].id);
+    if (filteredRemainingOptions.length > 0) {
+      handleAccept(filteredRemainingOptions[0].id);
     }
   };
-
-  // Manually reject the current card (fallback button)
   const handleManualReject = () => {
-    if (remainingOptions.length > 0) {
-      handleReject(remainingOptions[0].id);
+    if (filteredRemainingOptions.length > 0) {
+      handleReject(filteredRemainingOptions[0].id);
     }
   };
 
-  // Handle reconsideration of rejected options
-  const handleReconsider = (id: string) => {
-    const option = rejectedOptions.find(opt => opt.id === id);
-    if (option) {
-      setRejectedOptions(prev => prev.filter(opt => opt.id !== id));
-      setRemainingOptions(prev => [option, ...prev]);
-      
-      // Ensure the reconsidered card is visible
-      setVisibleCardCount(prev => Math.max(prev, 1));
-    }
-  };
-  
-  // Prevent browser drag and drop behavior with logging
+  // Prevent browser drag/drop
   const preventBrowserDragDrop = (e: React.DragEvent) => {
-    console.log("Preventing browser drag behavior");
-    e.preventDefault();
-    e.stopPropagation();
-    return false;
+    e.preventDefault(); e.stopPropagation(); return false;
   };
 
   return (
@@ -184,39 +176,32 @@ export const DesktopDragAndDrop: React.FC<DesktopDragAndDropProps> = ({
         onDragOver={preventBrowserDragDrop}
         onDrop={preventBrowserDragDrop}
       >
-        {/* Glass panel container */}
-        <div className="max-w-7xl mx-auto h-full p-6 flex flex-col">
+        <div className="max-w-7xl mx-auto h-full p-4 md:p-6 flex flex-col">
           {/* Header with progress */}
-          <GlassPanel className="mb-8 p-6">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <GlassPanel className="mb-6 md:mb-8 p-4 md:p-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4 md:mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Select Your Travel Options</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Select Your Travel Options</h2>
                 <p className="text-white/70">Drag options to accept or reject, or use the buttons below.</p>
               </div>
-              
               {onBack && (
                 <button
                   onClick={onBack}
                   className="bg-transparent backdrop-blur-sm text-white border-white/20 hover:bg-white/10
-                           px-4 py-2 rounded-lg transition-all duration-300
-                           font-medium border whitespace-nowrap"
+                             px-4 py-2 rounded-lg transition-all duration-300 font-medium border whitespace-nowrap"
                 >
                   Back to Chat
                 </button>
               )}
             </div>
-            
+
             {/* Progress bar */}
             <div className="w-full">
-              {/* Label */}
               <div className="flex justify-between mb-1 text-sm">
                 <span className="text-white/80">Selection Progress</span>
                 <span className="text-white/80">{progress.toFixed(0)}%</span>
               </div>
-              
-              {/* Progress track */}
               <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
-                {/* Progress fill */}
                 <motion.div 
                   className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full"
                   initial={{ width: 0 }}
@@ -227,248 +212,157 @@ export const DesktopDragAndDrop: React.FC<DesktopDragAndDropProps> = ({
             </div>
           </GlassPanel>
 
-          {/* Main content area */}
+          {/* Main content - UPDATED LAYOUT */}
           <div 
-            className="flex-1 flex flex-col lg:flex-row items-stretch justify-between gap-6"
+            className="flex-1 flex flex-col lg:flex-row items-stretch justify-between gap-4 md:gap-6 min-h-[500px]"
             onDragEnter={preventBrowserDragDrop}
             onDragOver={preventBrowserDragDrop}
           >
-            {/* Reject Zone */}
-            <DropZone type="reject" onDrop={handleReject} className="w-full lg:w-1/4 h-40 lg:h-auto">
+            {/* Reject Zone - ADJUSTED WIDTH */}
+            <DropZone type="reject" onDrop={handleReject} className="w-full lg:w-1/4 h-64 lg:h-auto flex-shrink-0">
               {rejectedOptions.length > 0 && (
-                <div className="mt-8 flex flex-col items-center">
-                  <span className="text-white/60 text-sm mb-4">
+                <div className="mt-4 lg:mt-8 flex flex-col items-center w-full">
+                  <span className="text-white/60 text-sm mb-2 lg:mb-4">
                     {rejectedOptions.length} option{rejectedOptions.length !== 1 ? 's' : ''} skipped
                   </span>
-                  
-                  {/* Show some rejected options that can be reconsidered */}
-                  <div className="space-y-2 w-full px-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 w-full max-w-full px-2 max-h-60 overflow-y-auto">
                     <AnimatePresence>
-                      {rejectedOptions.slice(0, 3).map((option, idx) => (
+                      {rejectedOptions.slice(0, 3).map((opt, i) => (
                         <motion.div
-                          key={option.id}
+                          key={opt.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -20 }}
-                          transition={{ delay: idx * 0.1 }}
+                          transition={{ delay: i * 0.1 }}
+                          className="w-full"
                         >
                           <GlassPanel 
-                            key={option.id}
-                            className="p-2 cursor-pointer"
-                            hoverEffect={true}
-                            onClick={() => handleReconsider(option.id)}
+                            className="p-2 cursor-pointer w-full"
+                            hoverEffect
+                            onClick={() => {
+                              // allow reconsider
+                              setRejectedOptions(prev => prev.filter(x => x.id !== opt.id));
+                              setRemainingOptions(prev => [opt, ...prev]);
+                              setVisibleCardCount(prev => Math.max(prev, 1));
+                            }}
                           >
                             <div className="flex items-center">
-                              <div className="w-12 h-12 relative rounded overflow-hidden">
-                                <img
-                                  src={option.imageSrc}
-                                  alt={option.title}
-                                  className="w-full h-full object-cover"
-                                  draggable={false}
-                                />
-                              </div>
-                              <div className="ml-2 flex-1 truncate">
-                                <p className="text-sm text-white font-medium truncate">{option.title}</p>
-                              </div>
+                              <img src={opt.imageSrc} alt={opt.title}
+                                   className="w-12 h-12 rounded object-cover flex-shrink-0" draggable={false}/>
+                              <p className="ml-2 text-white font-medium truncate">{opt.title}</p>
                             </div>
                           </GlassPanel>
                         </motion.div>
                       ))}
                     </AnimatePresence>
-                    
-                    {rejectedOptions.length > 3 && (
-                      <p className="text-white/60 text-xs text-center">
-                        +{rejectedOptions.length - 3} more skipped options
-                      </p>
-                    )}
+                    {rejectedOptions.length > 3 && <p className="text-white/60 text-xs text-center">
+                      +{rejectedOptions.length - 3} more skipped options
+                    </p>}
                   </div>
                 </div>
               )}
             </DropZone>
 
-            {/* Card Area */}
-            <div className="flex-1 flex items-center justify-center relative h-96 lg:h-auto min-h-[24rem]"
-                 onDragOver={preventBrowserDragDrop}>
-              {/* Card Stack */}
-              <div className="relative w-80 h-96">
-                {/* Add debug info */}
+            {/* Card Stack - INCREASED SIZE */}
+            <div className="flex-1 flex flex-col items-center justify-center relative h-[400px] lg:h-auto min-h-[400px] mb-32 lg:mb-0">
+              {/* Card container with proper spacing for buttons */}
+              <div className="relative w-72 sm:w-80 md:w-96 h-[400px] md:h-[450px]">
                 <div className="absolute top-0 left-0 -mt-6 text-xs text-white/50">
                   {isTransitioning ? 'Transitioning...' : 'Ready'}
                 </div>
-                
                 <AnimatePresence>
-                  {remainingOptions.slice(0, visibleCardCount).map((option, index) => (
+                  {filteredRemainingOptions.slice(0, visibleCardCount).map((opt, idx) => (
                     <DraggableCard
-                      key={option.id}
-                      id={option.id}
-                      title={option.title}
-                      description={option.description}
-                      imageSrc={option.imageSrc}
-                      price={option.price}
-                      rating={option.rating}
-                      details={option.details}
-                      index={index}
-                      totalCards={Math.min(remainingOptions.length, visibleCardCount)}
-                      onAccept={() => handleAccept(option.id)}
-                      onReject={() => handleReject(option.id)}
-                      isTopCard={index === 0} // Only the top card is interactive
+                      key={opt.id}
+                      id={opt.id}
+                      title={opt.title}
+                      description={opt.description}
+                      imageSrc={opt.imageSrc}
+                      price={opt.price}
+                      rating={opt.rating}
+                      details={opt.details}
+                      index={idx}
+                      totalCards={Math.min(filteredRemainingOptions.length, visibleCardCount)}
+                      onAccept={() => handleAccept(opt.id)}
+                      onReject={() => handleReject(opt.id)}
+                      isTopCard={idx === 0}
                     />
                   ))}
                 </AnimatePresence>
-                
-                {/* Empty state */}
-                {remainingOptions.length === 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-center"
-                  >
-                    <GlassPanel className="p-8 h-full flex flex-col items-center justify-center">
-                      <h3 className="text-xl font-bold text-white mb-2">
-                        {acceptedOptions.length > 0
-                          ? "All options reviewed!"
-                          : "No travel options available"}
-                      </h3>
-                      <p className="text-white/70 mb-6">
-                        {acceptedOptions.length > 0
-                          ? `You've added ${acceptedOptions.length} option${acceptedOptions.length !== 1 ? 's' : ''} to your trip.`
-                          : "Please try again with different preferences."}
-                      </p>
-                      
-                      {acceptedOptions.length > 0 && (
-                        <button 
-                          onClick={() => onComplete(acceptedOptions)}
-                          className="px-6 py-3 rounded-lg text-lg transition-all duration-300 font-medium border
-                                   bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent
-                                   hover:shadow-lg hover:scale-[1.02]"
-                        >
-                          Continue to Itinerary
-                        </button>
-                      )}
-                      
-                      {acceptedOptions.length === 0 && onBack && (
-                        <button 
-                          onClick={onBack}
-                          className="px-6 py-3 rounded-lg text-lg transition-all duration-300 font-medium border
-                                   bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent
-                                   hover:shadow-lg hover:scale-[1.02]"
-                        >
-                          Back to Preferences
-                        </button>
-                      )}
-                    </GlassPanel>
+                {filteredRemainingOptions.length === 0 && (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.2 }}
+                              className="text-center text-white/70 mt-4">
+                    No more options
                   </motion.div>
+                )}
+
+                {/* Remaining count */}
+                {filteredRemainingOptions.length > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 mb-4 text-center text-white/80 text-sm">
+                    {filteredRemainingOptions.length} option{filteredRemainingOptions.length !== 1 ? 's' : ''} remaining
+                  </div>
                 )}
               </div>
               
-              {/* Card count and instructions */}
-              {remainingOptions.length > 0 && (
-                <div className="absolute bottom-0 left-0 right-0 mb-4 text-center">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="text-white/80 text-sm"
-                  >
-                    {remainingOptions.length} option{remainingOptions.length !== 1 ? 's' : ''} remaining
-                  </motion.div>
+              {/* REPOSITIONED: Manual Controls - with absolute positioning and proper spacing */}
+              {filteredRemainingOptions.length > 0 && (
+                <div className="absolute bottom-[-80px] left-0 right-0 flex justify-center gap-6">
+                  <button onClick={handleManualReject}
+                          className="px-6 py-3 rounded-lg bg-rose-500 text-white shadow-lg z-20">
+                    ↩️ Skip
+                  </button>
+                  <button onClick={handleManualAccept}
+                          className="px-6 py-3 rounded-lg bg-emerald-500 text-white shadow-lg z-20">
+                    Add to Trip ↪️
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Accept Zone */}
-            <DropZone type="accept" onDrop={handleAccept} className="w-full lg:w-1/4 h-40 lg:h-auto">
+            {/* Accept Zone - ADJUSTED WIDTH */}
+            <DropZone type="accept" onDrop={handleAccept} className="w-full lg:w-1/4 h-64 lg:h-auto flex-shrink-0">
               {acceptedOptions.length > 0 && (
-                <div className="mt-8 flex flex-col items-center">
-                  <span className="text-white/60 text-sm mb-4">
+                <div className="mt-4 lg:mt-8 flex flex-col items-center w-full">
+                  <span className="text-white/60 text-sm mb-2 lg:mb-4">
                     {acceptedOptions.length} option{acceptedOptions.length !== 1 ? 's' : ''} selected
                   </span>
-                  
-                  {/* Show all accepted options */}
-                  <div className="space-y-2 w-full px-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 w-full max-w-full px-2 max-h-60 overflow-y-auto">
                     <AnimatePresence>
-                      {acceptedOptions.map((option, idx) => (
+                      {acceptedOptions.map((opt, i) => (
                         <motion.div
-                          key={option.id}
+                          key={opt.id}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 20 }}
-                          transition={{ delay: idx * 0.1 }}
+                          transition={{ delay: i * 0.1 }}
+                          className="w-full"
                         >
-                          <GlassPanel 
-                            key={option.id}
-                            className="p-2"
-                            color="success"
-                          >
+                          <GlassPanel className="p-2 w-full" color="success">
                             <div className="flex items-center">
-                              <div className="w-12 h-12 relative rounded overflow-hidden">
-                                <img
-                                  src={option.imageSrc}
-                                  alt={option.title}
-                                  className="w-full h-full object-cover"
-                                  draggable={false}
-                                />
-                              </div>
-                              <div className="ml-2 flex-1 truncate">
-                                <p className="text-sm text-white font-medium truncate">{option.title}</p>
-                                {option.price && (
-                                  <p className="text-xs text-white/70">${option.price}</p>
-                                )}
-                              </div>
+                              <img src={opt.imageSrc} alt={opt.title}
+                                   className="w-12 h-12 rounded object-cover flex-shrink-0" draggable={false}/>
+                              <p className="ml-2 text-white font-medium truncate">{opt.title}</p>
                             </div>
                           </GlassPanel>
                         </motion.div>
                       ))}
                     </AnimatePresence>
                   </div>
-                  
-                  {/* Skip to itinerary button */}
-                  {acceptedOptions.length >= 3 && remainingOptions.length > 0 && (
+                  {acceptedOptions.length >= 1 && (
                     <button
                       onClick={() => onComplete(acceptedOptions)}
-                      className="mt-4 px-3 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium border
-                              bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent
-                              hover:shadow-lg hover:scale-[1.02]"
+                      className="mt-4 px-3 py-1.5 rounded-lg text-sm font-medium w-full max-w-[200px]
+                                 bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
                     >
-                      Continue with {acceptedOptions.length} selection{acceptedOptions.length !== 1 ? 's' : ''}
+                      Continue with {acceptedOptions.length} selection{acceptedOptions.length > 1 ? 's' : ''}
                     </button>
                   )}
                 </div>
               )}
             </DropZone>
           </div>
-
-          {/* Manual Controls (for accessibility and fallback) */}
-          {remainingOptions.length > 0 && (
-            <motion.div 
-              className="mt-8 flex justify-center gap-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <button
-                onClick={handleManualReject}
-                disabled={isTransitioning}
-                className={`px-6 py-3 rounded-lg bg-gradient-to-r from-rose-600/80 to-pink-600/80 
-                         hover:from-rose-600 hover:to-pink-600 transition-all duration-300
-                         text-white font-medium border border-white/20
-                         ${isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                ↩️ Skip
-              </button>
-              <button
-                onClick={handleManualAccept}
-                disabled={isTransitioning}
-                className={`px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-600/80 to-teal-600/80
-                         hover:from-emerald-600 hover:to-teal-600 transition-all duration-300
-                         text-white font-medium border border-white/20
-                         ${isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                Add to Trip ↪️
-              </button>
-            </motion.div>
-          )}
         </div>
       </div>
     </DndProvider>

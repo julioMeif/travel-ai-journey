@@ -10,13 +10,21 @@
   },
   "dependencies": {
     "@react-spring/web": "^9.7.5",
+    "@turf/turf": "^7.2.0",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/uuid": "^10.0.0",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.6.3",
+    "mapbox-gl": "^3.11.0",
     "next": "15.2.4",
+    "openai": "^4.93.0",
     "react": "^18.2.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.2.0",
-    "react-tinder-card": "^1.6.4"
+    "react-map-gl": "^8.0.4",
+    "react-tinder-card": "^1.6.4",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

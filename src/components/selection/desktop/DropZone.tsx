@@ -1,4 +1,4 @@
-// src/components/selection/desktop/DropZone.tsx
+// src/components/selection/desktop/DropZone.tsx - Improved
 import React, { useState, useEffect } from 'react';
 import { useDrop } from 'react-dnd';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,17 +22,18 @@ export const DropZone: React.FC<DropZoneProps> = ({
   
   // Set up a pulsing animation that runs every few seconds to draw attention
   useEffect(() => {
+    // Reduced frequency of pulsing for better UX
     const interval = setInterval(() => {
       setShowPulse(true);
       setTimeout(() => setShowPulse(false), 600);
-    }, 5000);
+    }, 8000); // Increased to 8 seconds
     return () => clearInterval(interval);
   }, []);
   
-  // Define drop behavior - SIMPLIFIED for more reliable detection
+  // Define drop behavior
   const [{ isOver, canDrop }, dropRef] = useDrop({
     accept: 'CARD',
-    drop: (item: { id: string }, monitor) => {
+    drop: (item: { id: string }) => {
       console.log(`DROP EVENT DETECTED in ${type} zone for item ${item.id}`);
       onDrop(item.id);
       return { name: type };
@@ -73,7 +74,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
     },
   };
 
-  // Critical: Prevent default drag behaviors to avoid browser handling
+  // Prevent default drag behaviors to avoid browser handling
   const preventDefaultDragBehavior = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -82,7 +83,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
 
   return (
     <div 
-      className={`relative h-full ${className}`} 
+      className={`relative flex flex-col ${className}`} 
       ref={(node) => {
         if (node) dropRef(node);
       }}
@@ -106,21 +107,22 @@ export const DropZone: React.FC<DropZoneProps> = ({
       </AnimatePresence>
     
       <motion.div
-        className="h-full relative z-10"
+        className="h-full relative z-10 flex flex-col"
         animate={{
           scale: isActive ? 1.03 : 1,
         }}
       >
         <GlassPanel
-          className={`w-full h-full flex flex-col items-center justify-center border-2 transition-all duration-300
+          className={`w-full flex-grow flex flex-col items-center justify-center border-2 transition-all duration-300
                     ${isActive ? zoneContent[type].activeBorder : zoneContent[type].border}`}
           color={isActive ? (type === 'accept' ? 'success' : 'danger') : 'default'}
           intensity={isActive ? 'high' : 'medium'}
         >
-          <div className={`flex flex-col items-center gap-4 p-6 rounded-xl transition-all duration-300
+          {/* Drop Zone Header */}
+          <div className={`flex flex-col items-center gap-4 p-4 md:p-6 rounded-xl transition-all duration-300 w-full
                          ${isActive ? `bg-gradient-to-r ${zoneContent[type].activeColor}` : ''}`}>
-            <span className="text-4xl">{zoneContent[type].icon}</span>
-            <span className="text-xl font-medium text-white text-center">
+            <span className="text-3xl md:text-4xl">{zoneContent[type].icon}</span>
+            <span className="text-lg md:text-xl font-medium text-white text-center">
               {isActive ? zoneContent[type].activeText : zoneContent[type].text}
             </span>
             
@@ -138,8 +140,10 @@ export const DropZone: React.FC<DropZoneProps> = ({
             )}
           </div>
           
-          {/* Children content (e.g., cards that have been dropped) */}
-          {children}
+          {/* Children content container - IMPROVED STRUCTURE */}
+          <div className="w-full flex-grow flex flex-col items-center justify-start overflow-hidden">
+            {children}
+          </div>
         </GlassPanel>
       </motion.div>
     </div>

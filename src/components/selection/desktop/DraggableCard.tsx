@@ -1,7 +1,7 @@
-// src/components/selection/desktop/DraggableCard.tsx
+// src/components/selection/desktop/DraggableCard.tsx - Improved
 import React, { useState, useRef, useEffect } from 'react';
 import { useDrag } from 'react-dnd';
-import { motion, PanInfo } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { GlassPanel } from '../../ui';
 
 interface DraggableCardProps {
@@ -16,7 +16,7 @@ interface DraggableCardProps {
   totalCards: number;
   onAccept?: () => void;
   onReject?: () => void;
-  isTopCard: boolean; // Add this to indicate if it's the currently active card
+  isTopCard: boolean;
 }
 
 export const DraggableCard: React.FC<DraggableCardProps> = ({
@@ -31,13 +31,13 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
   totalCards,
   onAccept,
   onReject,
-  isTopCard, // Use this to determine interactivity
+  isTopCard,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   
-  // SIMPLIFIED drag configuration
+  // Drag configuration
   const [{ opacity }, dragRef] = useDrag({
     type: 'CARD',
     item: { id },
@@ -46,9 +46,6 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
       setIsDragging(false);
       const didDrop = monitor.didDrop();
       console.log(`Drag ended for card ${id}, item dropped: ${didDrop}`);
-      
-      // If the card was dropped on a target, we don't need to do anything
-      // React DnD will handle it via the drop target
     },
     collect: (monitor) => ({
       opacity: monitor.isDragging() ? 0.8 : 1,
@@ -66,15 +63,15 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
   // Calculate card positioning for stack effect
   const calculateOffset = () => {
     // Improved stacking effect
-    const stackSpacing = 8; // Spacing between cards in the stack
-    const stackRotationFactor = 0.8; // Degrees of rotation between cards
+    const stackSpacing = 6; // Slightly reduced spacing
+    const stackRotationFactor = 0.7; // Reduced rotation for cleaner look
     
     // Calculate based on position in stack (from bottom)
     return {
-      x: (totalCards - index - 1) * 1, // Slight horizontal offset
-      y: (totalCards - index - 1) * stackSpacing, // Vertical offset increases for cards deeper in stack
-      rotate: (totalCards - index - 1) * stackRotationFactor * (Math.random() > 0.5 ? 1 : -1), // Slightly random rotation
-      scale: 1 - (totalCards - index - 1) * 0.01, // Cards deeper in stack are slightly smaller
+      x: (totalCards - index - 1) * 0.5, // Reduced horizontal offset
+      y: (totalCards - index - 1) * stackSpacing, // Vertical offset
+      rotate: (totalCards - index - 1) * stackRotationFactor * (Math.random() > 0.5 ? 1 : -1), // Random rotation
+      scale: 1 - (totalCards - index - 1) * 0.02, // Slightly larger scaling difference
     };
   };
 
@@ -93,13 +90,6 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isExpanded]);
-
-  // Prevent default drag behavior for framer-motion events
-  const preventDragStart = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (!isTopCard) return;
-    event.preventDefault();
-    event.stopPropagation();
-  };
 
   // Render rating stars
   const renderRating = () => {
@@ -135,7 +125,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
       }}
       className={`
         absolute
-        w-80 h-96
+        w-full h-full
         ${isTopCard ? 'cursor-grab' : 'pointer-events-none'}
         ${isDragging ? 'cursor-grabbing z-50' : ''}
         ${isExpanded ? 'z-50' : ''}
@@ -159,14 +149,12 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
         damping: 20
       }}
       whileHover={isTopCard ? { scale: isExpanded ? 1.1 : 1.02 } : {}}
-      // These event handlers now use the correct types
-      onDragStart={preventDragStart}
     >
-      <GlassPanel className="h-full overflow-hidden" intensity={isTopCard ? "high" : "medium"}>
+      <GlassPanel className="h-full overflow-hidden flex flex-col" intensity={isTopCard ? "high" : "medium"}>
         {/* Card Content */}
         <div className="h-full flex flex-col">
-          {/* Image Section */}
-          <div className="h-2/3 w-full relative">
+          {/* Image Section - RELATIVE HEIGHT ADJUSTMENT */}
+          <div className="h-1/2 md:h-3/5 w-full relative">
             <img
               src={imageSrc}
               alt={title}
@@ -183,22 +171,22 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
             )}
           </div>
           
-          {/* Text Content */}
-          <div className="p-4 flex-1 flex flex-col justify-between">
+          {/* Text Content - IMPROVED LAYOUT */}
+          <div className="p-3 md:p-4 flex-1 flex flex-col justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">{title}</h3>
-              <p className="text-sm text-white/80 line-clamp-2">{description}</p>
+              <h3 className="text-lg md:text-xl font-bold text-white mb-1">{title}</h3>
+              <p className="text-xs md:text-sm text-white/80 line-clamp-2">{description}</p>
             </div>
             
             <div className="mt-2">
               {renderRating()}
               
-              {/* Expand/Details Button and Action Buttons*/}
-              <div className="mt-3 flex justify-between">
+              {/* ACTION BUTTONS - IMPROVED PLACEMENT */}
+              <div className="mt-3 md:mt-4 flex justify-between items-center">
                 {isTopCard && (
                   <button 
                     onClick={() => setIsExpanded(!isExpanded)}
-                    className="bg-transparent hover:bg-white/10 text-white text-sm px-3 py-1.5 rounded-lg transition-all duration-300"
+                    className="bg-transparent hover:bg-white/10 text-white text-xs md:text-sm px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-all duration-300"
                   >
                     {isExpanded ? 'Less info' : 'More info'}
                   </button>
@@ -210,7 +198,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
                       <button 
                         onClick={onReject}
                         className="bg-gradient-to-r from-rose-600 to-pink-600 text-white border-transparent
-                                 px-3 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium border
+                                 px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm rounded-lg transition-all duration-300 font-medium border
                                  hover:shadow-lg hover:scale-[1.02]"
                       >
                         Skip
@@ -220,7 +208,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
                       <button 
                         onClick={onAccept}
                         className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent
-                                 px-3 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium border
+                                 px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm rounded-lg transition-all duration-300 font-medium border
                                  hover:shadow-lg hover:scale-[1.02]"
                       >
                         Accept
@@ -233,13 +221,13 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
           </div>
         </div>
         
-        {/* Card Number Indicator */}
-        <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-md rounded-full w-8 h-8 flex items-center justify-center">
-          <span className="text-sm font-medium text-white">{index + 1}/{totalCards}</span>
+        {/* Card Number Indicator - FIXED POSITION */}
+        <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-md rounded-full w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">
+          <span className="text-xs md:text-sm font-medium text-white">{index + 1}/{totalCards}</span>
         </div>
       </GlassPanel>
       
-      {/* Expanded Card Details - only for top card */}
+      {/* Expanded Card Details - IMPROVED LAYOUT */}
       {isTopCard && isExpanded && (
         <motion.div
           className="absolute inset-0 z-40"
@@ -248,7 +236,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2 }}
         >
-          <GlassPanel className="p-5 h-full overflow-y-auto" intensity="high">
+          <GlassPanel className="p-4 md:p-5 h-full overflow-y-auto" intensity="high">
             <button 
               className="absolute top-3 right-3 bg-white/20 hover:bg-white/30 rounded-full p-1"
               onClick={() => setIsExpanded(false)}
@@ -260,9 +248,9 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
             </button>
             
             <div className="mt-4">
-              <h2 className="text-2xl font-bold text-white mb-4">{title}</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-3 md:mb-4">{title}</h2>
               
-              <div className="mb-6 relative h-40 rounded-lg overflow-hidden">
+              <div className="mb-4 md:mb-6 relative h-32 md:h-40 rounded-lg overflow-hidden">
                 <img
                   src={imageSrc}
                   alt={title}
@@ -271,30 +259,31 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
                 />
               </div>
               
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-3 md:mb-4">
                 {price && (
-                  <div className="text-lg font-bold text-white">{typeof price === 'number' ? `$${price}` : price}</div>
+                  <div className="text-base md:text-lg font-bold text-white">{typeof price === 'number' ? `$${price}` : price}</div>
                 )}
                 {renderRating()}
               </div>
               
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
-                <p className="text-white/80">{description}</p>
+              <div className="mb-4 md:mb-6">
+                <h3 className="text-base md:text-lg font-semibold text-white mb-1 md:mb-2">Description</h3>
+                <p className="text-sm md:text-base text-white/80">{description}</p>
               </div>
               
               {details && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-2">Details</h3>
-                  <div className="text-white/80">{details}</div>
+                <div className="mb-4 md:mb-6">
+                  <h3 className="text-base md:text-lg font-semibold text-white mb-1 md:mb-2">Details</h3>
+                  <div className="text-sm md:text-base text-white/80">{details}</div>
                 </div>
               )}
               
-              <div className="flex gap-3 mt-6">
+              {/* ACTION BUTTONS - FIXED POSITION AT BOTTOM */}
+              <div className="flex gap-3 mt-4 sticky bottom-4">
                 {onReject && (
                   <button 
                     className="flex-1 bg-gradient-to-r from-rose-600 to-pink-600 text-white border-transparent
-                             px-4 py-2 rounded-lg transition-all duration-300 font-medium border
+                             px-3 py-2 rounded-lg transition-all duration-300 font-medium border
                              hover:shadow-lg hover:scale-[1.02]"
                     onClick={() => {
                       setIsExpanded(false);
@@ -307,7 +296,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
                 {onAccept && (
                   <button 
                     className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-transparent
-                             px-4 py-2 rounded-lg transition-all duration-300 font-medium border
+                             px-3 py-2 rounded-lg transition-all duration-300 font-medium border
                              hover:shadow-lg hover:scale-[1.02]"
                     onClick={() => {
                       setIsExpanded(false);

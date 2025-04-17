@@ -1,13 +1,11 @@
 // src/components/timeline/Timeline.tsx
-// Purpose: Main timeline view for the travel itinerary
-// Used in: The final step of the travel planning wizard
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlassPanel } from '../ui/GlassPanel';
 import { Button } from '../ui/Button';
 import { ProgressBar } from '../ui/ProgressBar';
 import { TimelineDay, TimelineEventData } from './TimelineDay';
+import { InteractiveMap, MapDay } from './InteractiveMap';
 
 export interface ItineraryDay {
   date: Date;
@@ -58,6 +56,18 @@ export const Timeline: React.FC<TimelineProps> = ({
   
   // Calculate trip duration in days
   const tripDuration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  
+  // Transform ItineraryDay to MapDay for the InteractiveMap component
+  const mapDays: MapDay[] = days.map(day => ({
+    date: day.date,
+    events: day.events.map(event => ({
+      id: event.id,
+      title: event.title,
+      type: event.type,
+      location: event.location,
+      time: event.time
+    }))
+  }));
   
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-purple-800 to-indigo-900 p-4 md:p-6">
@@ -337,16 +347,9 @@ export const Timeline: React.FC<TimelineProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <GlassPanel className="p-6 text-center h-[500px] flex items-center justify-center">
-              <div>
-                <div className="text-6xl mb-4">🗺️</div>
-                <h3 className="text-xl font-bold text-white mb-2">Interactive Map</h3>
-                <p className="text-white/70">
-                  An interactive map with all your destinations and activities would appear here.
-                  <br />
-                  (Integration with mapping services like Google Maps or Mapbox would be implemented here)
-                </p>
-              </div>
+            <GlassPanel className="p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Interactive Map</h3>
+              <InteractiveMap destination={destination} days={mapDays} />
             </GlassPanel>
           </motion.div>
         )}
