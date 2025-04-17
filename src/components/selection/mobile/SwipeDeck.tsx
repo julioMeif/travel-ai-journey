@@ -169,7 +169,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
         <ProgressBar value={progress} color="primary" label="Selection Progress" />
       </GlassPanel>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 touch-pan-y">
         <div className="relative w-full h-[70vh] overflow-hidden">
           {cards.map((card, index) => (
             <TinderCard
