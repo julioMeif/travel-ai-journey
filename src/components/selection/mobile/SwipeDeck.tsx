@@ -38,16 +38,16 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
   const [isAnimating, setIsAnimating] = useState(false);
   const swipeRecordRef = useRef<Record<string, boolean>>({});
 
-  // Check if a primary option type has already been accepted
+  // Prevent duplicate acceptance of primary option types
   const isTypeAlreadyAccepted = (type: string) =>
-    ['flight', 'hotel'].includes(type) && acceptedOptions.some(opt => opt.type === type);
+    ['flight', 'hotel'].includes(type) &&
+    acceptedOptions.some(opt => opt.type === type);
 
-  // Filter out options of types already accepted
-  const filterRemainingOptions = (options: TravelOption[]) => {
-    return options.filter(opt => !isTypeAlreadyAccepted(opt.type));
-  };
+  // Filter out types already accepted
+  const filterRemainingOptions = (options: TravelOption[]) =>
+    options.filter(opt => !isTypeAlreadyAccepted(opt.type));
 
-  // Initialize when travelOptions change
+  // Initialize deck when travelOptions change
   useEffect(() => {
     const filtered = filterRemainingOptions(travelOptions);
     setCards([...filtered].reverse());
@@ -58,7 +58,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
     swipeRecordRef.current = {};
   }, [travelOptions]);
 
-  // Update progress and handle completion
+  // Track progress and auto-complete
   useEffect(() => {
     const total = travelOptions.length;
     const done = acceptedOptions.length + rejectedOptions.length;
@@ -68,7 +68,8 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
     }
   }, [acceptedOptions, rejectedOptions, travelOptions, onComplete, isAnimating]);
 
-  const handleSwiped = (direction: string, id: string, index: number) => {
+  // Handle swipe gestures
+  const handleSwiped = (direction: string, id: string) => {
     setIsAnimating(false);
     if (!swipeRecordRef.current[id]) {
       const option = travelOptions.find(opt => opt.id === id);
@@ -82,7 +83,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
           if (['flight', 'hotel'].includes(option.type)) {
             const updated = cards.filter(c => c.id !== id);
             setCards(updated);
-            setCurrentIndex(idx => Math.min(idx - 1, updated.length - 1));
+            setCurrentIndex(prevIdx => Math.min(prevIdx - 1, updated.length - 1));
           }
         } else if (direction === 'left') {
           setRejectedOptions(prev => [...prev, option]);
@@ -90,16 +91,17 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
         swipeRecordRef.current[id] = true;
       }
     }
-    setCurrentIndex(idx => idx - 1);
+    setCurrentIndex(prevIdx => prevIdx - 1);
   };
 
+  // Programmatic swipe
   const triggerSwipe = (direction: 'left' | 'right') => {
     if (currentIndex >= 0 && currentIndex < cards.length) {
-      const id = cards[currentIndex].id;
-      handleSwiped(direction, id, currentIndex);
+      handleSwiped(direction, cards[currentIndex].id);
     }
   };
 
+  // Card details
   const handleOpenDetails = () => {
     if (currentIndex >= 0 && currentIndex < cards.length) {
       setSelectedCard(cards[currentIndex]);
@@ -116,7 +118,7 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-purple-800 to-indigo-900 p-4 flex flex-col">
+    <div className="min-h-screen w-full bg-gradient-to-br from-purple-800 to-indigo-900 p-4 flex flex-col touch-none">
       <GlassPanel className="mb-6 p-4">
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -128,13 +130,13 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
         <ProgressBar value={progress} label="Selection Progress" />
       </GlassPanel>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 touch-none">
         <div className="relative w-full h-[70vh] overflow-hidden">
-          {cards.map((card, idx) => (
+          {cards.map(card => (
             <TinderCard
               key={card.id}
               className="absolute inset-0"
-              onSwipe={dir => handleSwiped(dir, card.id, idx)}
+              onSwipe={dir => handleSwiped(dir, card.id)}
               preventSwipe={[ 'up', 'down' ]}
             >
               <SwipeCard {...card} onExpand={handleOpenDetails} />
