@@ -1,3 +1,4 @@
+// src/components/selection/mobile/SwipeDeck.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import TinderCard from 'react-tinder-card';
 import { AnimatePresence } from 'framer-motion';
@@ -27,131 +28,176 @@ interface SwipeDeckProps {
   onBack?: () => void;
 }
 
-export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete, onBack }) => {
+export const SwipeDeck: React.FC<SwipeDeckProps> = ({
+  travelOptions,
+  onComplete,
+  onBack
+}) => {
+  // The deck we actually swipe through, starts as filtered travelOptions
   const [cards, setCards] = useState<TravelOption[]>([]);
+  // Final accepted and explicitly rejected lists
   const [acceptedOptions, setAcceptedOptions] = useState<TravelOption[]>([]);
   const [rejectedOptions, setRejectedOptions] = useState<TravelOption[]>([]);
+  // Progress 0–100 based on processed / original total
   const [progress, setProgress] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Details panel
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<TravelOption | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
   const swipeRecordRef = useRef<Record<string, boolean>>({});
 
-  // Prevent duplicate acceptance of primary option types
+  // Utility: if we've already accepted a flight/hotel, filter out any more of that type
   const isTypeAlreadyAccepted = (type: string) =>
     ['flight', 'hotel'].includes(type) &&
-    acceptedOptions.some(opt => opt.type === type);
+    acceptedOptions.some(o => o.type === type);
 
-  // Filter out types already accepted
-  const filterRemainingOptions = (options: TravelOption[]) =>
-    options.filter(opt => !isTypeAlreadyAccepted(opt.type));
-
-  // Initialize deck when travelOptions change
+  // Initialize the swipeable deck whenever travelOptions changes
   useEffect(() => {
-    const filtered = filterRemainingOptions(travelOptions);
-    setCards([...filtered].reverse());
+    swipeRecordRef.current = {};
     setAcceptedOptions([]);
     setRejectedOptions([]);
-    setCurrentIndex(filtered.length - 1);
     setProgress(0);
-    swipeRecordRef.current = {};
+
+    // Filter out duplicates of primary types to start
+    const filtered = travelOptions.filter(opt => !isTypeAlreadyAccepted(opt.type));
+    // Show top of deck last
+    setCards(filtered.reverse());
   }, [travelOptions]);
 
-  // Track progress and auto-complete
+  // Update progress whenever accepted or rejected changes
   useEffect(() => {
     const total = travelOptions.length;
     const done = acceptedOptions.length + rejectedOptions.length;
     setProgress((done / total) * 100);
-    if (done === total && total > 0 && !isAnimating) {
-      setTimeout(() => onComplete(acceptedOptions), 800);
-    }
-  }, [acceptedOptions, rejectedOptions, travelOptions, onComplete, isAnimating]);
+  }, [acceptedOptions, rejectedOptions, travelOptions]);
 
-  // Handle swipe gestures
-  const handleSwiped = (direction: string, id: string) => {
-    setIsAnimating(false);
-    if (!swipeRecordRef.current[id]) {
-      const option = travelOptions.find(opt => opt.id === id);
-      if (option) {
-        if (direction === 'right') {
-          setAcceptedOptions(prev =>
-            ['flight', 'hotel'].includes(option.type)
-              ? [...prev.filter(o => o.type !== option.type), option]
-              : [...prev, option]
-          );
-          if (['flight', 'hotel'].includes(option.type)) {
-            const updated = cards.filter(c => c.id !== id);
-            setCards(updated);
-            setCurrentIndex(prevIdx => Math.min(prevIdx - 1, updated.length - 1));
-          }
-        } else if (direction === 'left') {
-          setRejectedOptions(prev => [...prev, option]);
-        }
-        swipeRecordRef.current[id] = true;
+  // When we've swiped _all_ cards out, invoke onComplete
+  useEffect(() => {
+    if (cards.length === 0 && travelOptions.length > 0) {
+      // small delay so user sees final state
+      const t = setTimeout(() => onComplete(acceptedOptions), 500);
+      return () => clearTimeout(t);
+    }
+  }, [cards, travelOptions.length, acceptedOptions, onComplete]);
+
+  // Handle a single card swipe
+  const handleSwiped = (direction: 'left' | 'right', id: string) => {
+    if (swipeRecordRef.current[id]) return;        // ignore repeats
+    swipeRecordRef.current[id] = true;
+
+    // Find the swiped option in the original list
+    const opt = travelOptions.find(o => o.id === id);
+    if (!opt) return;
+
+    if (direction === 'right') {
+      // Accept: for flight/hotel, replace any existing of same type
+      setAcceptedOptions(prev =>
+        ['flight', 'hotel'].includes(opt.type)
+          ? [...prev.filter(o => o.type !== opt.type), opt]
+          : [...prev, opt]
+      );
+
+      // Remove **all** cards of this type if it's flight/hotel
+      if (['flight', 'hotel'].includes(opt.type)) {
+        setCards(prev => prev.filter(c => c.type !== opt.type));
+      } else {
+        // activities: only remove this one
+        setCards(prev => prev.filter(c => c.id !== id));
       }
+    } else {
+      // Reject: just record rejection and remove that one card
+      setRejectedOptions(prev => [...prev, opt]);
+      setCards(prev => prev.filter(c => c.id !== id));
     }
-    setCurrentIndex(prevIdx => prevIdx - 1);
   };
 
-  // Programmatic swipe
+  // Programmatic button-driven swipe
   const triggerSwipe = (direction: 'left' | 'right') => {
-    if (currentIndex >= 0 && currentIndex < cards.length) {
-      handleSwiped(direction, cards[currentIndex].id);
-    }
+    if (cards.length === 0) return;
+    handleSwiped(direction, cards[cards.length - 1].id);
   };
 
-  // Card details
-  const handleOpenDetails = () => {
-    if (currentIndex >= 0 && currentIndex < cards.length) {
-      setSelectedCard(cards[currentIndex]);
-      setDetailsOpen(true);
-    }
+  // Open / accept / reject from details overlay
+  const openDetails = () => {
+    if (cards.length === 0) return;
+    setSelectedCard(cards[cards.length - 1]);
+    setDetailsOpen(true);
   };
-  const handleAcceptFromDetails = () => {
+  const acceptFromDetails = () => {
     setDetailsOpen(false);
-    setTimeout(() => triggerSwipe('right'), 300);
+    setTimeout(() => triggerSwipe('right'), 200);
   };
-  const handleRejectFromDetails = () => {
+  const rejectFromDetails = () => {
     setDetailsOpen(false);
-    setTimeout(() => triggerSwipe('left'), 300);
+    setTimeout(() => triggerSwipe('left'), 200);
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-purple-800 to-indigo-900 p-4 flex flex-col touch-none">
+    <div
+      className="min-h-screen w-full bg-gradient-to-br from-purple-800 to-indigo-900 p-4 flex flex-col touch-none">
+      {/* Header + Progress */}
       <GlassPanel className="mb-6 p-4">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="text-xl font-bold text-white mb-2">Select Your Options</h2>
-            <p className="text-white/70 text-sm">Swipe right to accept, left to skip</p>
+            <h2 className="text-xl font-bold text-white mb-2">
+              Select Your Options
+            </h2>
+            <p className="text-white/70 text-sm">
+              Swipe ▶️ to accept, ◀️ to skip
+            </p>
           </div>
-          {onBack && <Button variant="ghost" size="sm" onClick={onBack}>Back</Button>}
+          {onBack && (
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              Back
+            </Button>
+          )}
         </div>
         <ProgressBar value={progress} label="Selection Progress" />
       </GlassPanel>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 touch-none">
+      {/* Swipe stack */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4">
         <div className="relative w-full h-[70vh] overflow-hidden">
-          {cards.map(card => (
-            <TinderCard
-              key={card.id}
-              className="absolute inset-0"
-              onSwipe={dir => handleSwiped(dir, card.id)}
-              preventSwipe={[ 'up', 'down' ]}
-            >
-              <SwipeCard {...card} onExpand={handleOpenDetails} />
-            </TinderCard>
-          ))}
+          <AnimatePresence>
+            {cards.map((card, idx) => (
+              <TinderCard
+                key={card.id}
+                className="absolute inset-0"
+                onSwipe={dir => handleSwiped(dir as 'left' | 'right', card.id)}
+                preventSwipe={['up', 'down']}
+              >
+                <SwipeCard {...card} onExpand={openDetails} />
+              </TinderCard>
+            ))}
+          </AnimatePresence>
+          {cards.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white/70">No more options…</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {currentIndex >= 0 && cards.length > 0 && (
+      {/* Buttons */}
+      {cards.length > 0 && (
         <div className="mt-6 flex justify-center gap-8">
-          <Button variant="danger" size="lg" onClick={() => triggerSwipe('left')}>👎</Button>
-          <Button variant="success" size="lg" onClick={() => triggerSwipe('right')}>👍</Button>
+          <Button
+            variant="danger"
+            size="lg"
+            onClick={() => triggerSwipe('left')}
+          >
+            👎
+          </Button>
+          <Button
+            variant="success"
+            size="lg"
+            onClick={() => triggerSwipe('right')}
+          >
+            👍
+          </Button>
         </div>
       )}
 
+      {/* Details overlay */}
       <AnimatePresence>
         {detailsOpen && selectedCard && (
           <CardDetails
@@ -162,18 +208,23 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({ travelOptions, onComplete,
             rating={selectedCard.rating}
             details={selectedCard.details}
             onClose={() => setDetailsOpen(false)}
-            onAccept={handleAcceptFromDetails}
-            onReject={handleRejectFromDetails}
+            onAccept={acceptFromDetails}
+            onReject={rejectFromDetails}
           />
         )}
       </AnimatePresence>
 
+      {/* Stats */}
       <div className="mt-6 flex justify-center gap-6">
         <GlassPanel className="py-2 px-4" color="danger">
-          <span className="text-white"><span className="font-bold">{rejectedOptions.length}</span> Skipped</span>
+          <span className="text-white">
+            <span className="font-bold">{rejectedOptions.length}</span> Skipped
+          </span>
         </GlassPanel>
         <GlassPanel className="py-2 px-4" color="success">
-          <span className="text-white"><span className="font-bold">{acceptedOptions.length}</span> Accepted</span>
+          <span className="text-white">
+            <span className="font-bold">{acceptedOptions.length}</span> Accepted
+          </span>
         </GlassPanel>
       </div>
     </div>
