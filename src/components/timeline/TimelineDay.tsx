@@ -1,12 +1,19 @@
 // src/components/timeline/TimelineDay.tsx
-// Purpose: Day card in the timeline with events
-// Used in: Timeline component to display a single day's itinerary
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '../ui/GlassPanel';
 import { Button } from '../ui/Button';
 import { TimelineEvent, EventType } from './TimelineEvent';
+
+export interface ItinerarySegment {
+  departureAirport: string;
+  arrivalAirport:   string;
+  departureTime:    string;
+  arrivalTime:      string;
+  carrier:          string;
+  flightNumber:     string;
+  duration:         string;
+}
 
 export interface TimelineEventData {
   id: string;
@@ -18,6 +25,7 @@ export interface TimelineEventData {
   location?: string;
   price?: number;
   type: EventType;
+  segments?: ItinerarySegment[];
 }
 
 interface TimelineDayProps {
@@ -36,55 +44,63 @@ export const TimelineDay: React.FC<TimelineDayProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   
-  // Format date
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   }).format(date);
   
-  // Toggle day expanded state
   const toggleExpanded = () => {
     setExpanded(!expanded);
-    // Close expanded event when collapsing day
     if (expanded) {
       setExpandedEvent(null);
     }
   };
   
-  // Toggle event expanded state
   const toggleEventExpanded = (eventId: string) => {
-    if (expandedEvent === eventId) {
-      setExpandedEvent(null);
-    } else {
-      setExpandedEvent(eventId);
-    }
+    setExpandedEvent(prev => prev === eventId ? null : eventId);
   };
   
-  // Group events by type
   const flights = events.filter(event => event.type === 'flight');
   const hotels = events.filter(event => event.type === 'hotel');
   const activities = events.filter(event => event.type === 'activity');
   const transports = events.filter(event => event.type === 'transport');
   
+  const isMorning = (time?: string) => {
+    if (!time) return false;
+    const hour = parseInt(time.split(':')[0]);
+    return hour < 12;
+  };
+  const isAfternoon = (time?: string) => {
+    if (!time) return false;
+    const hour = parseInt(time.split(':')[0]);
+    return hour >= 12 && hour < 18;
+  };
+  const isEvening = (time?: string) => {
+    if (!time) return false;
+    const hour = parseInt(time.split(':')[0]);
+    return hour >= 18;
+  };
+  
   return (
     <div className="mb-8">
-      {/* Day header */}
       <GlassPanel
         color="primary"
         className="mb-4 p-4"
-        hoverEffect={true}
+        hoverEffect
         onClick={toggleExpanded}
       >
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-xl font-bold text-white">Day {dayNumber} of {totalDays}</h3>
+            <h3 className="text-xl font-bold text-white">
+              Day {dayNumber} of {totalDays}
+            </h3>
             <p className="text-white/80">{formattedDate}</p>
           </div>
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               toggleExpanded();
             }}
@@ -92,35 +108,40 @@ export const TimelineDay: React.FC<TimelineDayProps> = ({
             {expanded ? 'Collapse' : 'Expand'}
           </Button>
         </div>
-        
-        {/* Summary for collapsed view */}
         {!expanded && (
           <div className="mt-3 flex flex-wrap gap-3">
             {flights.length > 0 && (
               <div className="bg-indigo-500/20 px-3 py-1 rounded-full">
-                <span className="text-white text-sm">✈️ {flights.length} Flight{flights.length !== 1 ? 's' : ''}</span>
+                <span className="text-white text-sm">
+                  ✈️ {flights.length} Flight{flights.length !== 1 ? 's' : ''}
+                </span>
               </div>
             )}
             {hotels.length > 0 && (
               <div className="bg-emerald-500/20 px-3 py-1 rounded-full">
-                <span className="text-white text-sm">🏨 {hotels.length} Hotel{hotels.length !== 1 ? 's' : ''}</span>
+                <span className="text-white text-sm">
+                  🏨 {hotels.length} Hotel{hotels.length !== 1 ? 's' : ''}
+                </span>
               </div>
             )}
             {activities.length > 0 && (
               <div className="bg-amber-500/20 px-3 py-1 rounded-full">
-                <span className="text-white text-sm">🎯 {activities.length} Activity{activities.length !== 1 ? 's' : ''}</span>
+                <span className="text-white text-sm">
+                  🎯 {activities.length} Activity{activities.length !== 1 ? 'ies' : 'y'}
+                </span>
               </div>
             )}
             {transports.length > 0 && (
               <div className="bg-white/20 px-3 py-1 rounded-full">
-                <span className="text-white text-sm">🚕 {transports.length} Transport{transports.length !== 1 ? 's' : ''}</span>
+                <span className="text-white text-sm">
+                  🚕 {transports.length} Transport{transports.length !== 1 ? 's' : ''}
+                </span>
               </div>
             )}
           </div>
         )}
       </GlassPanel>
       
-      {/* Expanded day content */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -131,122 +152,65 @@ export const TimelineDay: React.FC<TimelineDayProps> = ({
             className="overflow-hidden"
           >
             <div className="ml-6 border-l-2 border-white/20 pl-6">
-              {/* Morning section */}
+              
+              {/* Morning */}
               <div className="mb-6">
                 <h4 className="text-white/80 uppercase text-sm font-semibold mb-3">Morning</h4>
-                {events
-                  .filter(event => {
-                    const eventTime = event.time || '';
-                    return eventTime.includes('AM') || eventTime.includes('am') || parseInt(eventTime.split(':')[0]) < 12;
-                  })
-                  .map(event => (
-                    <TimelineEvent
-                      key={event.id}
-                      title={event.title}
-                      description={event.description}
-                      imageSrc={event.imageSrc}
-                      time={event.time}
-                      duration={event.duration}
-                      location={event.location}
-                      price={event.price}
-                      type={event.type}
-                      expanded={expandedEvent === event.id}
-                      onToggle={() => toggleEventExpanded(event.id)}
-                    />
-                  ))}
-                
-                {events.filter(event => {
-                  const eventTime = event.time || '';
-                  return eventTime.includes('AM') || eventTime.includes('am') || parseInt(eventTime.split(':')[0]) < 12;
-                }).length === 0 && (
-                  <p className="text-white/60 italic">No morning activities planned.</p>
+                {events.filter(e => isMorning(e.time)).map(event => (
+                  <TimelineEvent
+                    key={event.id}
+                    {...event}
+                    expanded={expandedEvent === event.id}
+                    onToggle={() => toggleEventExpanded(event.id)}
+                  />
+                ))}
+                {events.filter(e => isMorning(e.time)).length === 0 && (
+                  <p className="text-white/60 italic">No morning events planned.</p>
                 )}
               </div>
               
-              {/* Afternoon section */}
+              {/* Afternoon */}
               <div className="mb-6">
                 <h4 className="text-white/80 uppercase text-sm font-semibold mb-3">Afternoon</h4>
-                {events
-                  .filter(event => {
-                    const eventTime = event.time || '';
-                    const hour = parseInt(eventTime.split(':')[0]);
-                    return (eventTime.includes('PM') || eventTime.includes('pm') || hour >= 12) && hour < 18;
-                  })
-                  .map(event => (
-                    <TimelineEvent
-                      key={event.id}
-                      title={event.title}
-                      description={event.description}
-                      imageSrc={event.imageSrc}
-                      time={event.time}
-                      duration={event.duration}
-                      location={event.location}
-                      price={event.price}
-                      type={event.type}
-                      expanded={expandedEvent === event.id}
-                      onToggle={() => toggleEventExpanded(event.id)}
-                    />
-                  ))}
-                
-                {events.filter(event => {
-                  const eventTime = event.time || '';
-                  const hour = parseInt(eventTime.split(':')[0]);
-                  return (eventTime.includes('PM') || eventTime.includes('pm') || hour >= 12) && hour < 18;
-                }).length === 0 && (
-                  <p className="text-white/60 italic">No afternoon activities planned.</p>
+                {events.filter(e => isAfternoon(e.time)).map(event => (
+                  <TimelineEvent
+                    key={event.id}
+                    {...event}
+                    expanded={expandedEvent === event.id}
+                    onToggle={() => toggleEventExpanded(event.id)}
+                  />
+                ))}
+                {events.filter(e => isAfternoon(e.time)).length === 0 && (
+                  <p className="text-white/60 italic">No afternoon events planned.</p>
                 )}
               </div>
               
-              {/* Evening section */}
+              {/* Evening */}
               <div>
                 <h4 className="text-white/80 uppercase text-sm font-semibold mb-3">Evening</h4>
-                {events
-                  .filter(event => {
-                    const eventTime = event.time || '';
-                    const hour = parseInt(eventTime.split(':')[0]);
-                    return (eventTime.includes('PM') || eventTime.includes('pm')) && hour >= 18;
-                  })
-                  .map(event => (
-                    <TimelineEvent
-                      key={event.id}
-                      title={event.title}
-                      description={event.description}
-                      imageSrc={event.imageSrc}
-                      time={event.time}
-                      duration={event.duration}
-                      location={event.location}
-                      price={event.price}
-                      type={event.type}
-                      expanded={expandedEvent === event.id}
-                      onToggle={() => toggleEventExpanded(event.id)}
-                    />
-                  ))}
-                
-                {events.filter(event => {
-                  const eventTime = event.time || '';
-                  const hour = parseInt(eventTime.split(':')[0]);
-                  return (eventTime.includes('PM') || eventTime.includes('pm')) && hour >= 18;
-                }).length === 0 && (
-                  <p className="text-white/60 italic">No evening activities planned.</p>
+                {events.filter(e => isEvening(e.time)).map(event => (
+                  <TimelineEvent
+                    key={event.id}
+                    {...event}
+                    expanded={expandedEvent === event.id}
+                    onToggle={() => toggleEventExpanded(event.id)}
+                  />
+                ))}
+                {events.filter(e => isEvening(e.time)).length === 0 && (
+                  <p className="text-white/60 italic">No evening events planned.</p>
                 )}
               </div>
               
-              {/* Accommodation section */}
+              {/* Accommodation */}
               {hotels.length > 0 && (
                 <div className="mt-6 pt-6 border-t border-white/20">
                   <h4 className="text-white/80 uppercase text-sm font-semibold mb-3">Accommodation</h4>
-                  {hotels.map(hotel => (
+                  {hotels.map(event => (
                     <TimelineEvent
-                      key={hotel.id}
-                      title={hotel.title}
-                      description={hotel.description}
-                      imageSrc={hotel.imageSrc}
-                      duration={hotel.duration}
-                      location={hotel.location}
-                      price={hotel.price}
-                      type={hotel.type}
-                      expanded={expandedEvent === hotel.id}
-                      onToggle={() => toggleEventExpanded(hotel.id)}
+                      key={event.id}
+                      {...event}
+                      expanded={expandedEvent === event.id}
+                      onToggle={() => toggleEventExpanded(event.id)}
                     />
                   ))}
                 </div>

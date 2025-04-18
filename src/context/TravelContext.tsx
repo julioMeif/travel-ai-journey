@@ -25,19 +25,39 @@ interface AvailabilityAnalysis {
   suggestedQuestions: string[];
 }
 
+// Define Iti segment interfaces
+interface ItinerarySegment {
+  departureAirport: string;
+  arrivalAirport:   string;
+  departureTime:    string;
+  arrivalTime:      string;
+  carrier:          string;
+  flightNumber:     string;
+  duration:         string;
+}
+
+type TripType = 'oneWay' | 'roundTrip';
+
 // Define types for the raw travel items
 interface FlightOption {
-  id: string;
-  airline: string;
-  flightNumber: string;
-  departureAirport: string;
-  departureTime: string;
-  arrivalAirport: string;
-  arrivalTime: string;
-  price: number;
-  duration: string;
-  cabinClass: string;
-  stops: number;
+  id:                string;
+  airline:           string;
+  flightNumber:      string;
+  departureAirport:  string;
+  departureTime:     string;
+  arrivalAirport:    string;
+  arrivalTime:       string;
+  price:             number;
+  duration:          string;
+  cabinClass:        string;
+  stops:             number;
+  origin:            string;
+  destination:       string;
+  tripType:          TripType;
+  segments:          ItinerarySegment[];
+  validatingCarrier: string;
+  totalStops:        number;
+  totalDuration:     string;
 }
 
 interface HotelOption {
@@ -74,6 +94,7 @@ interface FormattedTravelOption {
   time?: string;
   duration?: string;
   location?: string;
+  segments?: ItinerarySegment[];
 }
 
 // Update QuickSearchResults interface to include analysis
@@ -131,6 +152,18 @@ interface TravelContextType {
 }
 
 const TravelContext = createContext<TravelContextType | undefined>(undefined);
+
+function formatDuration(iso: string): string {
+  // Matches “PT7H30M” etc.
+  const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!m) return iso;
+  const hours   = m[1] ? parseInt(m[1], 10) : 0;
+  const minutes = m[2] ? parseInt(m[2], 10) : 0;
+  const parts: string[] = [];
+  if (hours)   parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  return parts.join(' ') || '0m';
+}
 
 export const TravelProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Chat state
@@ -209,8 +242,11 @@ export const TravelProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       const hasOrigin = updatedPreferences.origin;
       const hasDestination = updatedPreferences.destination;
+
+      // ensure we have at least a departure date
+      const hasDeparture = Boolean(updatedPreferences.dates?.departure);
                                
-      if (hasOrigin && (hasNewDestination || (hasDestination && !quickResults)) && !isSearching) {
+      if (hasOrigin && hasDeparture && (hasNewDestination || (hasDestination && !quickResults)) && !isSearching) {
         console.log(`Starting quick search from ${hasOrigin} to ${hasDestination}`);
         setIsSearching(true);
         setSearchStatus(`Looking for options from ${updatedPreferences.origin} to ${updatedPreferences.destination}...`);
@@ -401,109 +437,119 @@ export const TravelProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const hasDestinationAndDates = (prefs: Partial<TravelPreferences>) => {
     return !!prefs.destination && !!prefs.dates?.departure;
   };
-  
+
   // Complete chat and generate final options
   const completeChatAndGenerateOptions = async () => {
     console.log("Starting final search and generating options");
     setIsSearching(true);
     setSearchStatus('Generating your personalized travel options...');
-    
+
     try {
-      // Generate final travel plan with AI assistance
+      // 1) Let AI draft the travel plan (if needed)
       const travelPlan = await aiService.generateTravelPlan(travelPreferences as TravelPreferences);
       console.log("Generated travel plan:", travelPlan);
-      
-      // Use IATA codes directly if they're provided by the AI
+
+      // 2) Build flight search params
       const flightParams: Partial<FlightSearchParams> = {
-        origin: travelPreferences.originCode || travelPreferences.origin || '',
-        destination: travelPreferences.destinationCode || travelPreferences.destination || '',
+        origin:        travelPreferences.originCode || travelPreferences.origin || '',
+        destination:   travelPreferences.destinationCode || travelPreferences.destination || '',
         departureDate: travelPreferences.dates?.departure,
-        returnDate: travelPreferences.dates?.return,
+        returnDate:    travelPreferences.dates?.return,
       };
 
-      // Build each promise separately
-      const flightPromise = travelService.searchFlights(flightParams as FlightSearchParams);
-      const hotelPromise = travelService.searchHotels({
-        // Hotel parameters...
+      // 3) Kick off all searches in parallel
+      const flightPromise     = travelService.searchFlights(flightParams as FlightSearchParams);
+      const hotelPromise      = travelService.searchHotels({
         location: travelPreferences.destinationCode || travelPreferences.destination || '',
-        checkIn: travelPreferences.dates?.departure,
+        checkIn:  travelPreferences.dates?.departure,
         checkOut: travelPreferences.dates?.return,
       });
       const activitiesPromise = aiService.suggestActivities(travelPreferences as TravelPreferences);
 
-      // Await all three
-      const [flights, hotels, aiActivities] = await Promise.all([
+      const [rawFlights, hotels, aiActivities] = await Promise.all([
         flightPromise,
         hotelPromise,
         activitiesPromise,
       ]);
 
-      // Fetch images for activities
+      // --- **CAST** rawFlights to our enriched FlightOption[] ---
+      const flights: FlightOption[] = rawFlights as FlightOption[];
+
+      // 4) Turn activities into cards (unchanged)
       const activityImagePromises = aiActivities.map(async (activity: ActivityOption) => {
         try {
-          // Create a search query based on activity and destination
           const searchQuery = `${activity.name},${travelPreferences.destination}`;
-          const images = await travelService.fetchUnsplashImages(searchQuery, 1);
-          return images.length > 0 ? images[0].urls.regular : null;
-        } catch (error) {
-          console.error(`Error fetching image for activity ${activity.name}:`, error);
+          const imgs = await travelService.fetchUnsplashImages(searchQuery, 1);
+          return imgs.length ? imgs[0].urls.regular : null;
+        } catch {
           return null;
         }
       });
-
-      // Wait for all image requests to complete
       const activityImages = await Promise.all(activityImagePromises);
-
-      // Map AI activities into your card format with fetched images
-      const activityOptions = aiActivities.map((act: ActivityOption, index: number) => ({
-        id: `activity-${act.id || index}`,
+      const activityOptions = aiActivities.map((act, i) => ({
+        id:    `activity-${act.id ?? i}`,
         title: act.name,
         description: act.brief,
-        // Use fetched image if available, otherwise use a fallback
-        imageSrc: activityImages[index] || 
+        imageSrc: activityImages[i] ||
                   `https://source.unsplash.com/featured/?${travelPreferences.destination},${act.name.replace(/\s+/g, ',')}`,
         price: act.estimatedPrice,
         rating: act.rating,
         type: 'activity' as const,
-        details: <p>{act.description}</p>
+        details: <p>{act.description}</p>,
       }));
-      
+
       console.log(`Retrieved ${flights.length} flights, ${hotels.length} hotels, ${aiActivities.length} activities`);
-      
-      // Format options for the selection phase
-      const formattedOptions = [
-        ...flights.map((flight: FlightOption) => ({
-          id: `flight-${flight.id}`,
-          title: `${flight.airline} Flight ${flight.flightNumber}`,
-          description: `${flight.departureAirport} to ${flight.arrivalAirport} • ${flight.stops === 0 ? 'Direct' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`}`,
-          imageSrc: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3MzkyODR8MHwxfHNlYXJjaHwxfHxhaXJwbGFuZXxlbnwwfHx8fDE3NDQ4OTczNDR8MA&ixlib=rb-4.0.3&q=80&w=200",
-          price: flight.price,
-          rating: 0,
-          type: 'flight' as const,
-          time: flight.departureTime,
-          duration: flight.duration,
-          location: `${flight.departureAirport} to ${flight.arrivalAirport}`,
-          details: (
-            <>
-              <p><strong>Flight Number:</strong> {flight.flightNumber}</p>
-              <p><strong>Airline:</strong> {flight.airline}</p>
-              <p><strong>Departure:</strong> {flight.departureTime} from {flight.departureAirport}</p>
-              <p><strong>Arrival:</strong> {flight.arrivalTime} at {flight.arrivalAirport}</p>
-              <p><strong>Duration:</strong> {flight.duration}</p>
-              <p><strong>Cabin:</strong> {flight.cabinClass}</p>
-              <p><strong>Stops:</strong> {flight.stops === 0 ? 'Direct flight' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`}</p>
-            </>
-          )
-        })),
-        ...hotels.map((hotel: HotelOption) => ({
-          id: `hotel-${hotel.id}`,
-          title: hotel.name,
+
+      // 5) **Format flights, hotels and activities into unified cards**
+      const formattedOptions: FormattedTravelOption[] = [
+        ...flights.map(flight => {
+          // format stops / duration
+          const stopsLabel = flight.totalStops === 0
+            ? 'Nonstop'
+            : `${flight.totalStops} stop${flight.totalStops > 1 ? 's' : ''}`;
+          const carrierLabel = flight.validatingCarrier || flight.airline;
+          const humanDur     = formatDuration(flight.totalDuration);
+          const tripLabel    = flight.tripType === 'roundTrip'
+            ? 'Round‑trip'
+            : 'One‑way';
+
+          return {
+            id:          `flight-${flight.id}`,
+            title:       `${tripLabel} • ${carrierLabel} • ${stopsLabel} • ${humanDur}`,
+            description: `${flight.origin} → ${flight.destination}`,
+            imageSrc:    "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3MzkyODR8MHwxfHNlYXJjaHwxfHxhaXJwbGFuZXxlbnwwfHx8fDE3NDQ4OTczNDR8MA&ixlib=rb-4.0.3&q=80&w=200",
+            price:       flight.price,
+            rating:      0,
+            type:        'flight' as const,
+            time:        flight.departureTime,
+            duration:    humanDur,
+            location:    `${flight.departureAirport} ➔ ${flight.arrivalAirport}`,
+            details: (
+              <>
+                {flight.segments.map((seg, idx) => (
+                  <p key={idx}>
+                    <strong>{seg.carrier} {seg.flightNumber}</strong>:{' '}
+                    {seg.departureAirport} ({new Date(seg.departureTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})
+                    {' '}→{' '}
+                    {seg.arrivalAirport} ({new Date(seg.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})
+                    {' '}• {seg.duration}
+                  </p>
+                ))}
+              </>
+            ),
+            segments: flight.segments,
+          };
+        }),
+
+        ...hotels.map(hotel => ({
+          id:        `hotel-${hotel.id}`,
+          title:     hotel.name,
           description: hotel.description,
-          imageSrc: "https://images.unsplash.com/photo-1445991842772-097fea258e7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3MzkyODR8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTJDaG90ZWx8ZW58MHx8fHwxNzQ0ODk4MzcxfDA&ixlib=rb-4.0.3&q=80&w=1080",
-          price: hotel.pricePerNight,
-          rating: hotel.rating,
-          type: 'hotel' as const,
-          location: hotel.address,
+          imageSrc:  "https://images.unsplash.com/photo-1445991842772-097fea258e7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3MzkyODR8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTJDaG90ZWx8ZW58MHx8fHwxNzQ0ODk4MzcxfDA&ixlib=rb-4.0.3&q=80&w=1080",
+          price:     hotel.pricePerNight,
+          rating:    hotel.rating,
+          type:      'hotel' as const,
+          location:  hotel.address,
           details: (
             <>
               <p><strong>Address:</strong> {hotel.address}</p>
@@ -511,11 +557,12 @@ export const TravelProvider: React.FC<{ children: ReactNode }> = ({ children }) 
               <p><strong>Price per night:</strong> ${hotel.pricePerNight}</p>
               <p><strong>Amenities:</strong> {hotel.amenities.join(', ')}</p>
             </>
-          )
+          ),
         })),
-        ...activityOptions
+
+        ...activityOptions,
       ];
-      
+
       console.log(`Formatted ${formattedOptions.length} options for selection`);
       setTravelOptions(formattedOptions);
     } catch (error) {
@@ -525,6 +572,7 @@ export const TravelProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setIsSearching(false);
     }
   };
+
   // Function to show travel insights before completing chat
   const showTravelInsights = async () => {
     // Use the ref's current value for logging and checks

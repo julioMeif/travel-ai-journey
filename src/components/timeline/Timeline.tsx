@@ -222,11 +222,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                   
                   {/* Calculate budget breakdown */}
                   {(() => {
-                    const flightsCost = days.reduce((total, day) => 
-                      total + day.events
-                        .filter(e => e.type === 'flight')
-                        .reduce((sum, e) => sum + (e.price || 0), 0)
-                    , 0);
                     
                     const hotelsCost = days.reduce((total, day) => 
                       total + day.events
@@ -245,6 +240,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                         .filter(e => e.type === 'transport')
                         .reduce((sum, e) => sum + (e.price || 0), 0)
                     , 0);
+
+                    // Derive flights from the rest
+                    const flightsCost = totalPrice - (hotelsCost + activitiesCost + transportCost);
+                    
                     
                     // Calculate percentages
                     const flightsPercent = Math.round((flightsCost / totalPrice) * 100);
