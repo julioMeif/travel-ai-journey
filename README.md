@@ -25,8 +25,28 @@ Travel-AI Journey is a personal, AI-driven demo showcasing end-to-end travel pla
 
 ## Getting Started
 
-1. **Clone the Repository:**
+If you're itching to try this out yourself (or perhaps build your own twist), you'll need a few keys handy:
 
-   ```bash
-   git clone https://github.com/yourusername/travel-ai-journey.git
-   cd travel-ai-journey
+- **OpenAI API Key** – Essential for the chat experience and preference extraction.
+- **Amadeus for Developers** – Provides real-time flight options.
+- **Unsplash Access Key** – Serves stunning images dynamically, because visuals matter!
+
+Set up your `.env` file:
+
+```env
+OPENAI_API_KEY="your_openai_key"
+AMADEUS_CLIENT_ID="your_amadeus_client_id"
+AMADEUS_CLIENT_SECRET="your_amadeus_secret"
+UNSPLASH_ACCESS_KEY="your_unsplash_key"
+```
+
+Quick start from GitHub:
+
+```bash
+git clone https://github.com/julioMeif/travel-ai-journey.git
+cd travel-ai-journey
+pnpm install
+npm run dev
+```
+
+Voilà! You’re ready to explore.
