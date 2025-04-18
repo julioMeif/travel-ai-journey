@@ -41,11 +41,6 @@ export const SwipeDeck: React.FC<SwipeDeckProps> = ({
   const [selectedCard, setSelectedCard] = useState<TravelOption | null>(null);
   const swipeRecordRef = useRef<Record<string, boolean>>({});
 
-  // Check if flight/hotel already accepted
-  const isTypeAlreadyAccepted = (type: string) =>
-    ['flight', 'hotel'].includes(type) &&
-    acceptedOptions.some(o => o.type === type);
-
   // === 1) Initialize deck whenever travelOptions changes ===
   useEffect(() => {
     swipeRecordRef.current = {};
